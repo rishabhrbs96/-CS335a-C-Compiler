@@ -87,7 +87,7 @@ def t_NEWLINE(t):
 	t.lexer.lineno += t.value.count("\n")
 
 def t_comment(t):
-	r'/\*(.|\n)*?\*/'
+	r'/\*(.|\n)*?\*/ | //(.)*?\n'
 	t.lexer.lineno += t.value.count('\n')
 
 def t_preprocessor(t):

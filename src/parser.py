@@ -617,6 +617,7 @@ if __name__ == "__main__":
 		tree = yacc.parse(data)
 		if tree is not None and flag_for_error == 0:
 			createParseTree.create_tree(tree,str(sys.argv[1]))
+			print "Parse tree created : "+str(sys.argv[1])+"tree.svg"
 			os.system("eog "+str(sys.argv[1])+"tree.svg")
 		#yacc.yacc(method='LALR',write_tables=False,debug=False)
 
