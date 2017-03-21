@@ -196,17 +196,28 @@ def p_postfix_expression2(p):
 	#p[0]=("postfix_expresssion",)+tuple(p[-len(p)+1:])
 	if(len(p) == 4):
 		p[0] = p[1]
+		newAstNode = AstNode(p[1]['NAME'],[])
+		p[0]['astChildList'] = [newAstNode]
 		if(str(p[1]['INPUT'][0]) != "void"):
 			print "Error at line number", p.lineno(1) ,": insufficient function arguments for function ",p[1]['NAME']
 			sys.exit()
 	else:
-		if(str(p[1]['INPUT']) == str(p[3])):
-			print p[3]
-			p[0] = p[1]
+		if(p[3].has_key('TYPE')):
+			if(str(p[1]['INPUT']) == str(p[3]['TYPE'])):
+				p[0] = p[1]
+				newAstNode = AstNode(p[1]['NAME'],p[3]['astChildList'])
+				p[0]['astChildList'] = [newAstNode]
+			else:
+				print "Error at line number", p.lineno(1) ,": invalid function arguments for function ",p[1]['NAME']
+				sys.exit()
 		else:
-			print "Error at line number", p.lineno(1) ,": invalid function arguments for function ",p[1]['NAME']
-			sys.exit()
-
+			if(str(p[1]['INPUT']) == str(p[3]['OUTPUT'])):
+				p[0] = p[1]
+				newAstNode = AstNode(p[1]['NAME'],p[3]['astChildList'])
+				p[0]['astChildList'] = [newAstNode]
+			else:
+				print "Error at line number", p.lineno(1) ,": invalid function arguments for function ",p[1]['NAME']
+				sys.exit()
 
 def p_postfix_expression3(p):	
 	'''postfix_expression : postfix_expression PERIOD IDENTIFIER
@@ -251,7 +262,10 @@ def p_postfix_expression4(p):
 		if(p[1]['ARRAY'] != 0):
 			print "Error at line number", p.lineno(1) ,": lvalue required as increment operand"
 		p[0] = p[1]
-
+		newAstNode = AstNode(p[2],p[1]['astChildList'])
+		p[0]['astChildList'] = [newAstNode]
+	else:
+		pass
 
 def p_argument_expression_list(p):
 	'''argument_expression_list : assignment_expression
@@ -259,16 +273,17 @@ def p_argument_expression_list(p):
 	#print "argument_expression_list"
 	#p[0]=("argument_expression_list",)+tuple(p[-len(p)+1:])
 	if(len(p) == 2):
-		print p[1]
 		if(p[1].has_key('TYPE')):
-			p[0] = [p[1]['TYPE']]
+			p[0] = {'TYPE':[p[1]['TYPE']],'astChildList':p[1]['astChildList']}
 		else:
-			p[0] = [p[1]['OUTPUT']]
+			print p[1]
+			p[0] = {'OUTPUT':[p[1]['OUTPUT']],'astChildList':p[1]['astChildList']}
 	else:
 		if(p[3].has_key('TYPE')):
-			p[0] = p[1] + [p[3]['TYPE']]
+			p[0] = {'TYPE':p[1]['TYPE']+[p[3]['TYPE']],'astChildList':p[1]['astChildList'] + p[3]['astChildList']}
 		else:
-			p[0] = p[1] + [p[3]['OUTPUT']]
+			p[0] = {'OUTPUT':p[1]['OUTPUT']+[p[3]['OUTPUT']],'astChildList':p[1]['astChildList'] + p[3]['astChildList']}
+
 
 def p_unary_expression(p):
 	'''unary_expression : postfix_expression
@@ -285,10 +300,14 @@ def p_unary_expression(p):
 
 	if(len(p) == 2):
 		p[0] = p[1]
-	else:
+	elif(len(p) == 3):
 		p[0] = p[2]
+		newAstNode = AstNode(p[1],p[2]['astChildList'])
+		p[0]['astChildList'] = [newAstNode]
 		if(p[1] == '&'):
 			p[0]['POINTER'] += 1
+	else:
+		pass
 # >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>   check it >>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 def p_unary_operator(p):
@@ -537,13 +556,20 @@ def p_expression(p):
 					| expression COMMA assignment_expression '''
 	#print "expression"
 	#p[0]=("expression",)+tuple(p[-len(p)+1:])
-	p[0] = p[1]
+	if(len(p) == 2):
+		p[0] = p[1]
+	else:
+		#newAstNode = AstNode(p[2],p[1]['astChildList'] + p[3]['astChildList'])
+		#p[0] = {'astChildList' :[newAstNode] }
+		#print newAstNode.astChildList
+		pass
 
 def p_constant_expression(p):
 	'''constant_expression : conditional_expression'''
 	#print "constant_expression"
 	#p[0]=("constant_expression",)+tuple(p[-len(p)+1:])
-	
+	p[0] = p[1]
+
 def p_declaration(p):
 	'''declaration : declaration_specifiers SEMI
 					| declaration_specifiers init_declarator_list SEMI
@@ -555,7 +581,8 @@ def p_declaration(p):
 	global FUNCTION_LIST_DEFINITION
 
 	if(len(p) == 3):
-		pass
+		newAstNode = AstNode(p[1]['TYPE'],[])
+		p[0] = {'astChildList':[newAstNode]}
 
 	if(len(p) == 4):
 		if(type_of_declaration == 1) :
@@ -614,7 +641,19 @@ def p_declaration(p):
 			if(flag != 1):
 				CURRENT_DECLARATION = [{"NAME":p[2][0][0],"INPUT":inp,"OUTPUT":p[1]['TYPE'],'OUTPUT POINTER':p[2][0][-1],'INPUT POINTERS':ptr}]
 				FUNCTION_LIST_DECLARATION = FUNCTION_LIST_DECLARATION + CURRENT_DECLARATION
-				parameter_symbol_table = SymbolTable(-1)	
+				parameter_symbol_table = SymbolTable(-1)
+
+			newAstNode = AstNode(p[1]['TYPE'],[])
+			newFunAstNode = AstNode(p[2][0][0],[])
+			newAstNode.astChildList += [newFunAstNode]
+			if(len(p[2][0]) > 2 ):
+				for n in p[2][0][1]:
+					newAstNode2 = AstNode(n[0]['TYPE'],[])
+					newAstNode3 = AstNode(n[1]['ID'],[])
+					newAstNode2.astChildList += [newAstNode3]
+					newAstNode.astChildList += [newAstNode2]
+			p[0] = {'astChildList':[newAstNode]}
+
 		type_of_declaration = 0
 
 	#p[0]=("declaration",)+tuple(p[-len(p)+1:])
@@ -673,7 +712,8 @@ def p_storage_class_specifier(p):
 								| REGISTER '''
 	#print "storage_class_specifier"
 	#p[0]=("storage_class_specifier",)+tuple(p[-len(p)+1:])
-	
+	p[0] = p[1]
+
 def p_type_specifier(p):
 	'''type_specifier : VOID
 						| CHAR 
@@ -716,7 +756,7 @@ def p_struct_or_union_specifier(p):
 	#print "struct_or_union_specifier"
 	#p[0]=("struct_or_union_specifier",)+tuple(p[-len(p)+1:])
 	if(len(p) == 6):
-		p[0] = {'NODE_TYPE': 'struct_decl','TYPE':p[1],'ARRAY':0, 'ID' : p[2], 'INDEX1': '','INDEX2':'','POINTER':0}
+		p[0] = {'NODE_TYPE': 'struct_decl','TYPE':p[1],'ARRAY':0, 'ID' : p[2], 'INDEX1': '','INDEX2':'','POINTER':0,'astChildList':[]}
 		#print p[0]['TYPE']
 
 def p_struct_name(p):
@@ -848,9 +888,11 @@ def p_declarator(p):
 			p[0] += [0]
 	else:
 		if(type_of_declaration == 1):
-			p[0] = {'astChildList':p[2]['astChildList'],'POINTER':int(p[1]),'INDEX2': p[2]['INDEX2'], 'NODE_TYPE': p[2]['NODE_TYPE'], 'INDEX1': p[2]['INDEX1'], 'ARRAY': p[2]['ARRAY'], 'ID': p[2]['ID']}
+			newAstNode = AstNode("<POINTER,"+str(p[1])+">",p[2]['astChildList'])
+			p[0] = {'astChildList':[newAstNode],'POINTER':int(p[1]),'INDEX2': p[2]['INDEX2'], 'NODE_TYPE': p[2]['NODE_TYPE'], 'INDEX1': p[2]['INDEX1'], 'ARRAY': p[2]['ARRAY'], 'ID': p[2]['ID']}
 		else:
 			p[0] = p[2]	+ [int(p[1])]
+		print p[0]
 
 def p_direct_declarator(p):
 	'''direct_declarator : IDENTIFIER
@@ -1065,7 +1107,8 @@ def p_statement(p):
 					| jump_statement '''
 	#print "statement"
 	#p[0]=("statement",)+tuple(p[-len(p)+1:])
-	
+	p[0] = p[1]
+
 def p_labeled_statement(p):
 	'''labeled_statement : IDENTIFIER COLON statement
 						| CASE constant_expression COLON statement
@@ -1106,6 +1149,10 @@ def p_expression_statement(p):
 							| expression SEMI  '''
 	#print "expression_statement"
 	#p[0]=("expression_statement",)+tuple(p[-len(p)+1:])
+	if(len(p) == 2):
+		p[0] = {'astChildList':[]}
+	else:
+		p[0] = p[1]
 
 def p_selection_statement(p):
 	'''selection_statement : IF LPAREN expression RPAREN statement ELSE statement
@@ -1242,6 +1289,12 @@ def p_function_definition(p):
 			#print type(n)
 			#print p[3]
 		newAstNode.astChildList += [newFunAstNode]
+		if(len(p[2]) > 2):
+			for n in p[2][1]:
+				newAstNode2 = AstNode(n[0]['TYPE'],[])
+				newAstNode3 = AstNode(n[1]['ID'],[])
+				newAstNode2.astChildList += [newAstNode3]
+				newAstNode.astChildList += [newAstNode2]
 		p[0] = {}	
 		p[0]['astChildList'] = [newAstNode]
 
@@ -1326,9 +1379,9 @@ if __name__ == "__main__":
 			rootAstNode = AstNode("AST_ROOT_NODE",[])
 			for n in tree:
 				rootAstNode.astChildList += n['astChildList']
-			#createAST.create_tree(rootAstNode,str(sys.argv[1]))
-			#os.system("eog "+str(sys.argv[1])+"tree.svg")
-			#print rootAstNode.astChildList[1].astChildList[0].astChildList[1].astChildList[0].astChildList[1].astChildList
+			createAST.create_tree(rootAstNode,str(sys.argv[1]))
+			os.system("eog "+str(sys.argv[1])+"tree.svg")
+			#print rootAstNode.astChildList[0].astChildList[0].astChildList[1].astChildList[0].astChildList[1].astChildList
 
 
 		#yacc.yacc(method='LALR',write_tables=False,debug=False)

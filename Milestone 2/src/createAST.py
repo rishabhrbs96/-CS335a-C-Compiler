@@ -4,8 +4,9 @@ mp = {}
 
 tokenVal = 0
 
-def calc_tree(g1,tk,parentToken):
+def calc_tree(g1,tk,parentToken,sp):
 	global tokenVal
+	print (sp)*"	",tk.name
 	if(not ( mp.has_key(str(tk)) ) ):
 		g1.node(str(tokenVal),str(tk.name))
 		ct = tokenVal
@@ -17,7 +18,7 @@ def calc_tree(g1,tk,parentToken):
 		childNumber = len(tk.astChildList)
 		if childNumber > 0:
 			for j in range(0,childNumber):
-				calc_tree(g1,tk.astChildList[j],parentToken)
+				calc_tree(g1,tk.astChildList[j],parentToken,sp+1)
 	else:
 		ct = mp[str(tk)]
 		if(parentToken >= 0):
@@ -46,7 +47,7 @@ def calc_tree2(g1,tk,parentToken):
 def create_tree(result,name):
 	g1 = gv.Graph(format='svg')
 	#g1.node(str(0),str(result.name))
-	calc_tree(g1,result,-1)
+	calc_tree(g1,result,-1,0)
 	filename = g1.render(filename=name+'tree')
 	#print filename
 	#print(g1.source)
