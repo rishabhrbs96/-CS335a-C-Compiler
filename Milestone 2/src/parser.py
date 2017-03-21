@@ -50,6 +50,25 @@ tableNumber = 1;
 tokens = lexer.tokens
 flag_for_error = 0
 
+def print_symbol_table(symbol_table,flag):
+	filename =str(symbol_table.tableNumber)+".csv"
+	f = open(filename, 'wb')
+	
+	f.write("          Table Number = %s\n" %str(symbol_table.tableNumber))
+
+	num_var=len(symbol_table.attributes)
+	if(flag == 1 ):
+		f.write("Name,Type,Pointer,Array,Index1\n")
+	else:
+		f.write("Name,Type,Pointer,Array,Index1,Index2\n")
+	for x in range(0,num_var):
+		if(flag ==1 ):
+			f.write("%s,%s,%s,%s,%s\n" %(symbol_table.attributes[x]['NAME'],symbol_table.attributes[x]['TYPE'],symbol_table.attributes[x]['POINTER'],symbol_table.attributes[x]['ARRAY'],symbol_table.attributes[x]['INDEX1']))
+		else:
+			f.write("%s,%s,%s,%s,%s,%s\n" %(symbol_table.attributes[x]['NAME'],symbol_table.attributes[x]['TYPE'],symbol_table.attributes[x]['POINTER'],symbol_table.attributes[x]['ARRAY'],symbol_table.attributes[x]['INDEX1'],symbol_table.attributes[x]['INDEX2']))
+	f.close()
+
+
 def type_cast_assign(s1,s2):
 	data_types=["short","float","double","int","long","long long","char"]
 	if((s1 in data_types) and (s2 in data_types)):
@@ -647,6 +666,7 @@ def p_declaration(p):
 			if(flag != 1):
 				CURRENT_DECLARATION = [{"NAME":p[2][0][0],"INPUT":inp,"OUTPUT":p[1]['TYPE'],'OUTPUT POINTER':p[2][0][-1],'INPUT POINTERS':ptr}]
 				FUNCTION_LIST_DECLARATION = FUNCTION_LIST_DECLARATION + CURRENT_DECLARATION
+				print_symbol_table(parameter_symbol_table,1)
 				parameter_symbol_table = SymbolTable(-1)
 
 			newAstNode = AstNode(p[1]['TYPE'],[])
@@ -1428,6 +1448,7 @@ def p_function_definition(p):
 			functions = functions + [currentfunction]
 			CURRENT_DECLARATION = [{"NAME":p[2][0],"INPUT":p[2][0],"OUTPUT":p[1]['TYPE']}]
 			FUNCTION_LIST_DEFINITION = FUNCTION_LIST_DEFINITION + CURRENT_DECLARATION
+			print_symbol_table(parameter_symbol_table,1)
 			parameter_symbol_table = SymbolTable(-1)	
 
 			
@@ -1467,6 +1488,7 @@ def p_function_definition(p):
 			CURRENT_DECLARATION = [{"NAME":p[2][0],"INPUT":inp,"OUTPUT":p[1]['TYPE'],'OUTPUT POINTER':p[2][-1],'INPUT POINTERS':ptr}]
 			#print len(p[2][1][0])
 			FUNCTION_LIST_DEFINITION = FUNCTION_LIST_DEFINITION + CURRENT_DECLARATION
+			print_symbol_table(parameter_symbol_table,1)
 			parameter_symbol_table = SymbolTable(-1)
 		newAstNode = AstNode(p[1]['TYPE'],[])
 		newFunAstNode = AstNode(p[2][0],[])
@@ -1524,7 +1546,9 @@ def p_righttbrace(p):
 	global currentStructName
 
 	currentStructName = ''
+	print_symbol_table(currentSymbolTable,0)
 	currentSymbolTable = currentSymbolTable.father
+	print_symbol_table(currentSymbolTable,0)
 	if(structDeclarationCount > 0):
 		structDeclarationCount = structDeclarationCount - 1
 

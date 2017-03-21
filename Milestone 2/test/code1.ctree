@@ -2,35 +2,49 @@ graph {
 	0 [label=AST_ROOT_NODE]
 	1 [label=int]
 		0 -- 1
-	2 [label=main]
+	2 [label=d]
 		1 -- 2
 	3 [label=int]
-		2 -- 3
-	4 [label=a]
+		0 -- 3
+	4 [label=fin]
 		3 -- 4
-	5 [label=for]
-		2 -- 5
-	6 [label="FOR-INIT"]
+	5 [label=int]
+		4 -- 5
+	6 [label=c]
 		5 -- 6
-	7 [label="="]
-		6 -- 7
-		7 -- 4
-	8 [label=0]
+	7 [label=int]
+		3 -- 7
+	8 [label=e]
 		7 -- 8
-	9 [label="FOR-CONDITION"]
-		5 -- 9
-	10 [label=">"]
+	9 [label=int]
+		3 -- 9
+	10 [label=f]
 		9 -- 10
-		10 -- 4
-	11 [label=2]
-		10 -- 11
-	12 [label="FOR-INCREMENT"]
-		5 -- 12
-	13 [label="++"]
+	11 [label=int]
+		0 -- 11
+	12 [label=main]
+		11 -- 12
+	13 [label=int]
 		12 -- 13
-		13 -- 4
-	14 [label="FOR-BODY"]
-		5 -- 14
-	15 [label=NULL]
+	14 [label="="]
+		13 -- 14
+	15 [label=a]
 		14 -- 15
+	16 [label=2]
+		14 -- 16
+	17 [label=int]
+		12 -- 17
+	18 [label="="]
+		17 -- 18
+	19 [label=b]
+		18 -- 19
+		18 -- 15
+	20 [label=int]
+		11 -- 20
+	21 [label=m]
+		20 -- 21
+	22 [label=int]
+		11 -- 22
+	23 [label=n]
+		22 -- 23
 }

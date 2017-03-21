@@ -1,15 +1,17 @@
 import graphviz as gv
 
 mp = {}
-
+dump_str=""
 tokenVal = 0
 
 def calc_tree(g1,tk,parentToken,sp):
 	global tokenVal
+	global dump_str
 	if(type(tk) is list):
 		calc_tree(g1,tk[0],parentToken,sp)
 	else:
-		print (sp)*"	",tk.name
+		dump_str=dump_str+"\n"+(sp)*"	"+tk.name
+		#print (sp)*"	",tk.name
 		if(not ( mp.has_key(str(tk)) ) ):
 			g1.node(str(tokenVal),str(tk.name))
 			ct = tokenVal
@@ -56,6 +58,10 @@ def create_tree(result,name):
 	#print(g1.source)
 	#print(result)
 	#print result.astChildList
+	print dump_str
+	f = open('dump.txt', 'wb')
+	f.write("%s" % dump_str)
+	f.close()
 	pass
 
 

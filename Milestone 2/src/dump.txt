@@ -1,0 +1,26 @@
+
+AST_ROOT_NODE
+	int
+		d
+	int
+		fin
+			int
+				c
+		int
+			e
+		int
+			f
+	int
+		main
+			int
+				=
+					a
+					2
+			int
+				=
+					b
+					a
+		int
+			m
+		int
+			n
