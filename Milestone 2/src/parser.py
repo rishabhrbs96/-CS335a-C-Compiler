@@ -892,7 +892,6 @@ def p_declarator(p):
 			p[0] = {'astChildList':[newAstNode],'POINTER':int(p[1]),'INDEX2': p[2]['INDEX2'], 'NODE_TYPE': p[2]['NODE_TYPE'], 'INDEX1': p[2]['INDEX1'], 'ARRAY': p[2]['ARRAY'], 'ID': p[2]['ID']}
 		else:
 			p[0] = p[2]	+ [int(p[1])]
-		print p[0]
 
 def p_direct_declarator(p):
 	'''direct_declarator : IDENTIFIER
@@ -901,15 +900,19 @@ def p_direct_declarator(p):
 	#print "direct_declarator"
 	global type_of_declaration
 	type_of_declaration = 1
+	newAstNode = AstNode(p[1],[])
 	if(len(p) == 2 ):
 		p[0] = {'NODE_TYPE' : 'var_decl_id', 'ARRAY':0, 'ID' : p[1], 'INDEX1': 0,'INDEX2':0,'POINTER':0}
 	elif(len(p) == 5):
 		p[0] = {'NODE_TYPE': 'var_decl_id','ARRAY':1, 'ID' : p[1], 'INDEX1': p[3],'INDEX2':'','POINTER':1}
+		newAstNode2 = newAstNode
+		newAstNode = AstNode("<ARRAY,1>",[newAstNode2])
 	else:
 		p[0] = {'NODE_TYPE': 'var_decl_id','ARRAY':2, 'ID' : p[1], 'INDEX1': p[3],'INDEX2':p[6],'POINTER':2}
+		newAstNode2 = newAstNode
+		newAstNode = AstNode("<ARRAY,2>",[newAstNode2])
 		#print t[1]
 	#p[0]=("direct_declarator",)+tuple(p[-len(p)+1:])
-	newAstNode = AstNode(p[1],[])
 	p[0]['astChildList'] = [newAstNode]
 
 def p_arrayindex(p):
@@ -924,13 +927,19 @@ def p_direct_declarator2(p):
 	#print "direct_declarator"
 	global type_of_declaration
 	type_of_declaration = 1
+	newAstNode = AstNode(p[1],[])
 	if(len(p) == 4 ):
 		p[0] = {'NODE_TYPE' : 'var_decl_id', 'ARRAY':1, 'ID' : p[1], 'INDEX1': '0','INDEX2':'','POINTER':0}
+		newAstNode2 = newAstNode
+		newAstNode = AstNode("<ARRAY,1>",[newAstNode2])
 	elif(len(p) == 6):
 		p[0] = {'NODE_TYPE': 'var_decl_id','ARRAY':2, 'ID' : p[1], 'INDEX1': '0','INDEX2':'0','POINTER':1}
+		newAstNode2 = newAstNode
+		newAstNode = AstNode("<ARRAY,2>",[newAstNode2])
 	else:
 		p[0] = {'NODE_TYPE': 'var_decl_id','ARRAY':2, 'ID' : p[1], 'INDEX1': '0','INDEX2':p[5],'POINTER':2}
-	newAstNode = AstNode(p[1],[])
+		newAstNode2 = newAstNode
+		newAstNode = AstNode("<ARRAY,2>",[newAstNode2])
 	p[0]['astChildList'] = [newAstNode]
 
 def p_direct_declarator3(p):
@@ -947,8 +956,6 @@ def p_direct_declarator3(p):
 	
 	if(len(p)==4):
 		p[0] = [p[1]]
-
-
 
 def p_pointer(p):
 	'''pointer : TIMES pointer
@@ -1099,15 +1106,33 @@ def p_static_assert_declaration(p):
 	#p[0]=("static_assert_declaration",)+tuple(p[-len(p)+1:])
 	
 def p_statement(p):
+	'''statement : compound_statement
+					| expression_statement '''
+	#print "statement"
+	#p[0]=("statement",)+tuple(p[-len(p)+1:])
+	p[0] = p[1]
+
+def p_statement2(p):
+	'''statement : selection_statement '''
+	#print "statement"
+	#p[0]=("statement",)+tuple(p[-len(p)+1:])
+	p[0] = p[1]
+	#print p[0]['astChildList'][0].astChildList[1].astChildList
+
+def p_statement3(p):
+	'''statement : iteration_statement '''
+	#print "statement"
+	#p[0]=("statement",)+tuple(p[-len(p)+1:])
+	p[0] = p[1]
+
+def p_statement4(p):
 	'''statement : labeled_statement
-					| compound_statement
-					| expression_statement
-					| selection_statement
-					| iteration_statement
 					| jump_statement '''
 	#print "statement"
 	#p[0]=("statement",)+tuple(p[-len(p)+1:])
 	p[0] = p[1]
+	pass
+
 
 def p_labeled_statement(p):
 	'''labeled_statement : IDENTIFIER COLON statement
@@ -1123,7 +1148,8 @@ def p_compound_statement(p):
 	#print "compound_statement"
 	#p[0]=("compound_statement",)+tuple(p[-len(p)+1:])
 	if(len(p) == 3):
-		p[0] = {'astChildList':[]}
+		newAstNode = AstNode("NULL",[])
+		p[0] = {'astChildList':[newAstNode]}
 	else:
 		p[0] = p[2]
 
@@ -1150,27 +1176,178 @@ def p_expression_statement(p):
 	#print "expression_statement"
 	#p[0]=("expression_statement",)+tuple(p[-len(p)+1:])
 	if(len(p) == 2):
-		p[0] = {'astChildList':[]}
+		newAstNode = AstNode("NULL",[])
+		p[0] = {'astChildList':[newAstNode]}
 	else:
 		p[0] = p[1]
 
 def p_selection_statement(p):
 	'''selection_statement : IF LPAREN expression RPAREN statement ELSE statement
-							| IF LPAREN expression RPAREN statement  
-							| SWITCH LPAREN expression RPAREN statement '''
+							| IF LPAREN expression RPAREN statement '''
 	#print "selection_statement"
 	#p[0]=("selection_statement",)+tuple(p[-len(p)+1:])
-	
+	if(len(p) == 6):
+		newAstNode3 = AstNode("IF-CONDITION",p[3]['astChildList'])
+		newAstNode2 = AstNode(p[1],[newAstNode3])
+		newAstNode3 = AstNode("IF-BODY",[])
+		if(type(p[5]) is list):
+			for n in p[5]:
+				newAstNode3.astChildList += n['astChildList']
+		else:
+			newAstNode3.astChildList += p[5]['astChildList']
+		newAstNode2.astChildList += [newAstNode3]
+		p[0] = {'astChildList':[newAstNode2]}
+		pass
+	else:
+		newAstNode = AstNode(p[6],[])
+		if(type(p[7]) is list):
+			for n in p[7]:
+				newAstNode.astChildList += n['astChildList']
+		else:
+			newAstNode.astChildList += p[7]['astChildList']
+		newAstNode3 = AstNode("IF-CONDITION",p[3]['astChildList'])
+		newAstNode2 = AstNode(p[1],[newAstNode3])
+		newAstNode3 = AstNode("IF-BODY",[])
+		if(type(p[5]) is list):
+			for n in p[5]:
+				newAstNode3.astChildList += n['astChildList']
+		else:
+			newAstNode3.astChildList += p[5]['astChildList']
+		newAstNode2.astChildList += [newAstNode3]
+		newAstNode2.astChildList += [newAstNode]
+		p[0] = {'astChildList':[newAstNode2]}
+		pass
+
+def p_selection_statement2(p):
+	'''selection_statement : SWITCH LPAREN expression RPAREN statement '''
+	#print "selection_statement"
+	#p[0]=("selection_statement",)+tuple(p[-len(p)+1:])
+	pass
+
 def p_iteration_statement(p):
 	'''iteration_statement : WHILE LPAREN expression RPAREN statement
-							| DO statement WHILE LPAREN expression RPAREN SEMI
-							| FOR LPAREN expression_statement expression_statement RPAREN statement
+							'''
+	#print "iteration_statement"
+	#p[0]=("iteration_statement",)+tuple(p[-len(p)+1:])
+	newAstNode = AstNode(p[1],[])
+	newAstNode2 = AstNode("WHILE-CONDITION",p[3]['astChildList'])
+	newAstNode.astChildList += [newAstNode2]
+	newAstNode2 = AstNode("WHILE-BODY",[])
+	if(type(p[5]) is list):
+		for n in p[5]:
+			newAstNode2.astChildList += n['astChildList']
+	else:
+		newAstNode2.astChildList += p[5]['astChildList']
+	newAstNode.astChildList += [newAstNode2]
+	p[0] = {'astChildList':[newAstNode]}
+
+def p_iteration_statement2(p):
+	'''iteration_statement : DO statement WHILE LPAREN expression RPAREN SEMI
+							'''
+	#print "iteration_statement"
+	#p[0]=("iteration_statement",)+tuple(p[-len(p)+1:])
+	newAstNode = AstNode(p[1],[])
+	newAstNode2 = AstNode("DO-BODY",[])
+	if(type(p[2]) is list):
+		for n in p[2]:
+			newAstNode2.astChildList += n['astChildList']
+	else:
+		newAstNode2.astChildList += p[2]['astChildList']
+	newAstNode.astChildList += [newAstNode2]
+	newAstNode2 = AstNode("DO-CONDITION",p[5]['astChildList'])
+	newAstNode.astChildList += [newAstNode2]
+	p[0] = {'astChildList':[newAstNode]}
+
+
+def p_iteration_statement3(p):
+	'''iteration_statement : FOR LPAREN expression_statement expression_statement RPAREN statement
 							| FOR LPAREN expression_statement expression_statement expression RPAREN statement
-							| FOR LPAREN declaration expression_statement RPAREN statement
+							'''
+	#print "iteration_statement"
+	#p[0]=("iteration_statement",)+tuple(p[-len(p)+1:])
+	if(len(p) == 7):
+		newAstNode = AstNode(p[1],[])
+		newAstNode2 = AstNode("FOR-INIT",p[3]['astChildList'])
+		newAstNode.astChildList += [newAstNode2]
+		
+		newAstNode2 = AstNode("FOR-CONDITION",p[4]['astChildList'])
+		newAstNode.astChildList += [newAstNode2]
+
+		newAstNode2 = AstNode("FOR-INCREMENT",[AstNode("NULL",[])])
+		newAstNode.astChildList += [newAstNode2]
+		
+		newAstNode2 = AstNode("FOR-BODY",[])
+		if(type(p[6]) is list):
+			for n in p[6]:
+				newAstNode2.astChildList += n['astChildList']
+		else:
+			newAstNode2.astChildList += p[6]['astChildList']
+		newAstNode.astChildList += [newAstNode2]
+		p[0] = {'astChildList':[newAstNode]}
+	else:
+		newAstNode = AstNode(p[1],[])
+		newAstNode2 = AstNode("FOR-INIT",p[3]['astChildList'])
+		newAstNode.astChildList += [newAstNode2]
+		
+		newAstNode2 = AstNode("FOR-CONDITION",p[4]['astChildList'])
+		newAstNode.astChildList += [newAstNode2]
+
+		newAstNode2 = AstNode("FOR-INCREMENT",p[5]['astChildList'])
+		newAstNode.astChildList += [newAstNode2]
+		
+		newAstNode2 = AstNode("FOR-BODY",[])
+		if(type(p[7]) is list):
+			for n in p[7]:
+				newAstNode2.astChildList += n['astChildList']
+		else:
+			newAstNode2.astChildList += p[7]['astChildList']
+		newAstNode.astChildList += [newAstNode2]
+		p[0] = {'astChildList':[newAstNode]}
+
+def p_iteration_statement4(p):
+	'''iteration_statement : FOR LPAREN declaration expression_statement RPAREN statement
 							| FOR LPAREN declaration expression_statement expression RPAREN statement
 							 '''
 	#print "iteration_statement"
 	#p[0]=("iteration_statement",)+tuple(p[-len(p)+1:])
+	if(len(p) == 7):
+		newAstNode = AstNode(p[1],[])
+		newAstNode2 = AstNode("FOR-INIT",p[3]['astChildList'])
+		newAstNode.astChildList += [newAstNode2]
+		
+		newAstNode2 = AstNode("FOR-CONDITION",p[4]['astChildList'])
+		newAstNode.astChildList += [newAstNode2]
+
+		newAstNode2 = AstNode("FOR-INCREMENT",[AstNode("NULL",[])])
+		newAstNode.astChildList += [newAstNode2]
+		
+		newAstNode2 = AstNode("FOR-BODY",[])
+		if(type(p[6]) is list):
+			for n in p[6]:
+				newAstNode2.astChildList += n['astChildList']
+		else:
+			newAstNode2.astChildList += p[6]['astChildList']
+		newAstNode.astChildList += [newAstNode2]
+		p[0] = {'astChildList':[newAstNode]}
+	else:
+		newAstNode = AstNode(p[1],[])
+		newAstNode2 = AstNode("FOR-INIT",p[3]['astChildList'])
+		newAstNode.astChildList += [newAstNode2]
+		
+		newAstNode2 = AstNode("FOR-CONDITION",p[4]['astChildList'])
+		newAstNode.astChildList += [newAstNode2]
+
+		newAstNode2 = AstNode("FOR-INCREMENT",p[5]['astChildList'])
+		newAstNode.astChildList += [newAstNode2]
+		
+		newAstNode2 = AstNode("FOR-BODY",[])
+		if(type(p[7]) is list):
+			for n in p[7]:
+				newAstNode2.astChildList += n['astChildList']
+		else:
+			newAstNode2.astChildList += p[7]['astChildList']
+		newAstNode.astChildList += [newAstNode2]
+		p[0] = {'astChildList':[newAstNode]}
 
 def p_jump_statement(p):
 	'''jump_statement : GOTO IDENTIFIER SEMI 
@@ -1284,10 +1461,11 @@ def p_function_definition(p):
 			parameter_symbol_table = SymbolTable(-1)
 		newAstNode = AstNode(p[1]['TYPE'],[])
 		newFunAstNode = AstNode(p[2][0],[])
-		for n in p[3]:
-			newFunAstNode.astChildList += n['astChildList']
-			#print type(n)
-			#print p[3]
+		if(type(p[3]) is list):
+			for n in p[3]:
+				newFunAstNode.astChildList += n['astChildList']
+		else:
+			newFunAstNode.astChildList += p[3]['astChildList']
 		newAstNode.astChildList += [newFunAstNode]
 		if(len(p[2]) > 2):
 			for n in p[2][1]:

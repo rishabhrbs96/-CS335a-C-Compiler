@@ -6,23 +6,26 @@ tokenVal = 0
 
 def calc_tree(g1,tk,parentToken,sp):
 	global tokenVal
-	print (sp)*"	",tk.name
-	if(not ( mp.has_key(str(tk)) ) ):
-		g1.node(str(tokenVal),str(tk.name))
-		ct = tokenVal
-		tokenVal = tokenVal + 1
-		mp[str(tk)] = ct
-		if(parentToken >= 0):
-			g1.edge(str(parentToken),str(ct))
-		parentToken = ct
-		childNumber = len(tk.astChildList)
-		if childNumber > 0:
-			for j in range(0,childNumber):
-				calc_tree(g1,tk.astChildList[j],parentToken,sp+1)
+	if(type(tk) is list):
+		calc_tree(g1,tk[0],parentToken,sp)
 	else:
-		ct = mp[str(tk)]
-		if(parentToken >= 0):
-			g1.edge(str(parentToken),str(ct))
+		print (sp)*"	",tk.name
+		if(not ( mp.has_key(str(tk)) ) ):
+			g1.node(str(tokenVal),str(tk.name))
+			ct = tokenVal
+			tokenVal = tokenVal + 1
+			mp[str(tk)] = ct
+			if(parentToken >= 0):
+				g1.edge(str(parentToken),str(ct))
+			parentToken = ct
+			childNumber = len(tk.astChildList)
+			if childNumber > 0:
+				for j in range(0,childNumber):
+					calc_tree(g1,tk.astChildList[j],parentToken,sp+1)
+		else:
+			ct = mp[str(tk)]
+			if(parentToken >= 0):
+				g1.edge(str(parentToken),str(ct))
 	
 
 	pass
