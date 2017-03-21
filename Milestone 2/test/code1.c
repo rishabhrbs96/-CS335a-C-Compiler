@@ -1,8 +1,6 @@
 int main() {
-	if(c==0) {
-		c++;
-	if(a==b)
-		a++;}
-	else
-		b++;
+	for(int c=0;c<2;c++){
+		int i;
+	}
+	int a=c;
 }
