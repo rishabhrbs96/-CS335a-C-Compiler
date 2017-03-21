@@ -1,8 +1,9 @@
+int fun(int *f) {
+	int a;
+}
+
+
 int main() {
-	if(c==0) {
-		c++;
-	if(a==b)
-		a++;}
-	else
-		b++;
+	int *a;
+	fun(a);
 }

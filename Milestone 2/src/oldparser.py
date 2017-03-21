@@ -4,87 +4,42 @@ import lexer
 import ply.yacc as yacc
 import createParseTree
 import SymbolTable
-import ast
-import createAST
 
 from createParseTree import create_tree
 from createParseTree import calc_tree
 from createParseTree import tokenVal
 from SymbolTable import *
-from ast import *
-from createAST import *
 
-global type_of_declaration
-type_of_declaration = 0		#0 default 1 for var declaraion -1 for func declaration
+
+global declarationType
+declarationType = 0		#0 default 1 for var declaraion -1 for func declaration
 global functionDefinition
 functionDefinition = 0  #0 default 1 if it is a function defintion
 
 global returnSpecifier
 returnSpecifier = 'void'
-global structDeclarationCount
-structDeclarationCount = 0
-global currentStructName
-currentStructName = ''
-global tempTable
-tempTable = -1
-
-global currentScopeNodes
-currentScopeNodes = []
 
 global currentSymbolTable
 currentSymbolTable = SymbolTable(-1)
-global FUNCTION_LIST_DECLARATION
-FUNCTION_LIST_DECLARATION = [{'NAME':' ','INPUT':'',"OUTPUT":''}]
-global FUNCTION_LIST_DEFINITION
-FUNCTION_LIST_DEFINITION = [{'NAME':' ','INPUT':'',"OUTPUT":''}]
+global FUNCTION_PROTOTYPE_DECLARATION
+FUNCTION_PROTOTYPE_DECLARATION = [{'NAME':' ','INPUT':'',"OUTPUT":''}]
+global FUNCTION_PROTOTYPE_DEFINITION
+FUNCTION_PROTOTYPE_DEFINITION = [{'NAME':' ','INPUT':'',"OUTPUT":''}]
 global functions
 functions = []
-global parameter_symbol_table
-parameter_symbol_table = SymbolTable(-1)
+global parametersymboltable
+parametersymboltable = SymbolTable(-1)
 tableNumber = 1;
-
+type = ''
 
 tokens = lexer.tokens
 flag_for_error = 0
-
-def type_cast_assign(s1,s2):
-	data_types=["short","float","double","int","long","long long","char"]
-	if((s1 in data_types) and (s2 in data_types)):
-		return s1
-	else:
-		return "error"
-
-
-def type_cast_addmul(s1,s2):
-	if(s1>s2):
-		tmp_var=s1
-		s1=s2
-		s2=tmp_var
-
-	if(s1=="float" and s2 =="int"):
-		return "float"
-	elif(s1=="double" and s2 =="float"):
-		return "double"
-	elif(s1=="double" and s2 =="int"):
-		return "double"
-	elif(s1=="int" and s2 =="long"):
-		return "long"
-	elif(s1=="int" and s2 =="long long"):
-		return "long long"
-	elif(s1=="int" and s2=="short"):
-		return "int"
-	else:
-		return "error"
 
 def p_translation_unit(p):
 	'''translation_unit : external_declaration
 						| translation_unit external_declaration '''
 	#print "translational_unit"
 	#p[0]=("translational_unit",)+tuple(p[-len(p)+1:])
-	if(len(p) == 2):
-		p[0] = [p[1]]
-	else:
-		p[0] = p[1] + [p[2]]
 
 def p_primary_expression(p):
 	'''primary_expression : constant
@@ -101,16 +56,16 @@ def p_primary_expression2(p):
 	if(len(p) == 4):
 		p[0] = p[2]
 	else:
-		pass
+		print "Rule not added"
 
 def p_primary_expression3(p):
 	'''primary_expression : IDENTIFIER  '''
 	flag = 0
 	check = currentSymbolTable.lookup(p[1])
 	if(check == False):
-		check = parameter_symbol_table.lookup(p[1])
+		check = parametersymboltable.lookup(p[1])
 		if(check == False):
-			for func in FUNCTION_LIST_DEFINITION :
+			for func in FUNCTION_PROTOTYPE_DEFINITION :
 				if(p[1] in func['NAME']):
 					flag = 1
 					break
@@ -128,25 +83,19 @@ def p_constant(p):
 	'''constant : I_CONSTANT '''
 	#print "constant"
 	#p[0]=("primary_expression",)+tuple(p[-len(p)+1:])
-	p[0] = {'INDEX2': '', 'INDEX1': '', 'ARRAY': 0, 'TYPE':'int','POINTER':0}
-	newAstNode = AstNode(p[1],[])
-	p[0]['astChildList'] = [newAstNode]
+	p[0] = {'INDEX2': '', 'INDEX1': '', 'ARRAY': 0, 'TYPE':'int'}
 
 def p_constant2(p):
 	'''constant : F_CONSTANT '''
 	#print "constant"
 	#p[0]=("primary_expression",)+tuple(p[-len(p)+1:])
-	p[0] = {'INDEX2': '', 'INDEX1': '', 'ARRAY': 0, 'TYPE':'float','POINTER':0}
-	newAstNode = AstNode(p[1],[])
-	p[0]['astChildList'] = [newAstNode]
+	p[0] = {'INDEX2': '', 'INDEX1': '', 'ARRAY': 0, 'TYPE':'float'}
 
 def p_constant3(p):
 	'''constant : CCONST '''
 	#print "constant"
 	#p[0]=("primary_expression",)+tuple(p[-len(p)+1:])
-	p[0] = {'INDEX2': '', 'INDEX1': '', 'ARRAY': 0, 'TYPE':'char','POINTER':0}
-	newAstNode = AstNode(p[1],[])
-	p[0]['astChildList'] = [newAstNode]
+	p[0] = {'INDEX2': '', 'INDEX1': '', 'ARRAY': 0, 'TYPE':'char'}
 
 def p_enumeration_constant(p):
 	'''enumeration_constant : IDENTIFIER'''
@@ -156,10 +105,9 @@ def p_enumeration_constant(p):
 def p_string(p):
 	'''string : STRINGLITERAL
 				| FUNC_NAME '''
+	print "doubt"
 	#p[0]=("string",)+tuple(p[-len(p)+1:])
-	p[0] = {'INDEX2': '', 'INDEX1': '', 'ARRAY': 1, 'TYPE':'char','POINTER':1}
-	newAstNode = AstNode(p[1],[])
-	p[0]['astChildList'] = [newAstNode]
+	p[0] = {'INDEX2': '', 'INDEX1': '', 'ARRAY': 1, 'TYPE':'char'}
 
 def p_generic_selection(p):
 	'''generic_selection : GENERIC LPAREN assignment_expression COMMA generic_assoc_list RPAREN '''
@@ -186,8 +134,8 @@ def p_postfix_expression(p):
 	if(len(p) == 2):
 		p[0] = p[1]
 	else:
-		pass
-# >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>   check it >>>>>>>>>>>>>>>>>>>>>>>>>>>>
+		print "rule not added"
+
 
 def p_postfix_expression2(p):
 	'''postfix_expression : postfix_expression LPAREN RPAREN
@@ -201,57 +149,22 @@ def p_postfix_expression2(p):
 			sys.exit()
 	else:
 		if(str(p[1]['INPUT']) == str(p[3])):
-			print p[3]
 			p[0] = p[1]
 		else:
 			print "Error at line number", p.lineno(1) ,": invalid function arguments for function ",p[1]['NAME']
 			sys.exit()
 
 
-def p_postfix_expression3(p):	
+def p_postfix_expression3(p):
 	'''postfix_expression : postfix_expression PERIOD IDENTIFIER
-							| postfix_expression PTR_OP IDENTIFIER '''
-	#print "postfix_expresssion"
-	#p[0]=("postfix_expresssion",)+tuple(p[-len(p)+1:])
-	global currentSymbolTable
-	global tempTable
-
-	if(tempTable == -1):
-		tempTable = currentSymbolTable
-
-	while(not(tempTable==-1)):
-		for x in tempTable.structChildList:
-			if(str(x.structName) == str(p[1]['NAME'])):
-				check = x.lookupCurrentTable(p[3])
-				if(check == False):
-					print "Error at line number", p.lineno(1) ,": struct ",x.structName, " does not have varable named ", p[3]
-					sys.exit()
-				else:
-					p[0] = check['attributes']
-					tempTable = x
-				break
-		if(str(x.structName) == str(p[1]['NAME'])):
-			break
-		tempTable = tempTable.father
-	if(tempTable==-1):
-		print "Error at line number", p.lineno(1) ,": struct not declared"
-		sys.exit()
-	#print p[3]
-	#print currentSymbolTable.structChildList[0].symbols
-	
-
-def p_postfix_expression4(p):
-	'''postfix_expression : postfix_expression INC_OP
+							| postfix_expression PTR_OP IDENTIFIER
+							| postfix_expression INC_OP
 							| postfix_expression DEC_OP
 							| LPAREN type_name RPAREN left_brace initializer_list right_brace
 							| LPAREN type_name RPAREN left_brace initializer_list COMMA right_brace '''
 	#print "postfix_expresssion"
 	#p[0]=("postfix_expresssion",)+tuple(p[-len(p)+1:])
-	if(len(p) == 3):
-		if(p[1]['ARRAY'] != 0):
-			print "Error at line number", p.lineno(1) ,": lvalue required as increment operand"
-		p[0] = p[1]
-
+	
 
 def p_argument_expression_list(p):
 	'''argument_expression_list : assignment_expression
@@ -259,7 +172,6 @@ def p_argument_expression_list(p):
 	#print "argument_expression_list"
 	#p[0]=("argument_expression_list",)+tuple(p[-len(p)+1:])
 	if(len(p) == 2):
-		print p[1]
 		if(p[1].has_key('TYPE')):
 			p[0] = [p[1]['TYPE']]
 		else:
@@ -280,16 +192,8 @@ def p_unary_expression(p):
 						| ALIGNOF LPAREN type_name RPAREN '''
 	#print "unary_expression"
 	#p[0]=("unary_expression",)+tuple(p[-len(p)+1:])
-	global tempTable
-	tempTable = -1
-
 	if(len(p) == 2):
 		p[0] = p[1]
-	else:
-		p[0] = p[2]
-		if(p[1] == '&'):
-			p[0]['POINTER'] += 1
-# >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>   check it >>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 def p_unary_operator(p):
 	'''unary_operator : AND_OP
@@ -300,7 +204,6 @@ def p_unary_operator(p):
 						| LNOT '''     #changetoken
 	#print "unary_operator"
 	#p[0]=("unary_operator",)+tuple(p[-len(p)+1:])
-	p[0] = p[1]
 		
 def p_cast_expression(p):
 	'''cast_expression : unary_expression
@@ -323,17 +226,11 @@ def p_multiplicative_expression(p):
 	if(len(p) == 2):
 		p[0] = p[1]
 	else:
-		if(p[1]['TYPE'] == p[3]['TYPE'] and p[1]['POINTER'] == p[3]['POINTER']):
-			p[0] = {'TYPE':p[1]['TYPE'],'POINTER':p[1]['POINTER']}
+		if(p[1]['TYPE'] == p[3]['TYPE']):
+			p[0] = {'TYPE':p[1]['TYPE']}
 		else:
-			result=type_cast_addmul(p[1]['TYPE'],p[3]['TYPE'])
-			if(result == "error"):
-				print "Error at line number", p.lineno(1) ,": mismatched type"
-				sys.exit()
-			else:
-				p[0] = {'TYPE':result}
-		newAstNode = AstNode(p[2],p[1]['astChildList']+p[3]['astChildList'])
-		p[0]['astChildList'] = [newAstNode]
+			print "Error at line number", p.lineno(1) ,": mismatched type"
+			sys.exit()
 
 def p_additive_expression(p):
 	'''additive_expression : multiplicative_expression
@@ -344,17 +241,11 @@ def p_additive_expression(p):
 	if(len(p) == 2):
 		p[0] = p[1]
 	else:
-		if(p[1]['TYPE'] == p[3]['TYPE'] and p[1]['POINTER'] == p[3]['POINTER']):
-			p[0] = {'TYPE':p[1]['TYPE'],'POINTER':p[1]['POINTER']}
+		if(p[1]['TYPE'] == p[3]['TYPE']):
+			p[0] = {'TYPE':p[1]['TYPE']}
 		else:
-			result=type_cast_addmul(p[1]['TYPE'],p[3]['TYPE'])
-			if(result == "error"):
-				print "Error at line number", p.lineno(1) ,": mismatched type"
-				sys.exit()
-			else:
-				p[0] = {'TYPE':result}	
-		newAstNode = AstNode(p[2],p[1]['astChildList']+p[3]['astChildList'])
-		p[0]['astChildList'] = [newAstNode]
+			print "Error at line number", p.lineno(1) ,": mismatched type"
+			sys.exit()
 
 def p_shift_expression(p):
 	'''shift_expression : additive_expression
@@ -364,16 +255,6 @@ def p_shift_expression(p):
 	#p[0]=("shift_expression",)+tuple(p[-len(p)+1:])
 	if(len(p) == 2):
 		p[0] = p[1]
-	else:
-		if(((str(p[1]['TYPE']) in ["char","int","short","long"]) and (str(p[3]['TYPE']) in ["char","int","short","long"])) and (p[1]['POINTER'] == 0 and p[3]['POINTER']==0) ) :
-			p[0] = {'TYPE': 'int','POINTER':0}
-		else:
-			print (p[1]['POINTER'])
-			print (p[3]['POINTER'])
-			print "Error at line number",p.lineno(1),": incorrect data types , shift operation between",str(p[1]['TYPE']),(p[1]['POINTER'])*"*","and",str(p[3]['TYPE']),(p[3]['POINTER'])*"*"
-			sys.exit()
-		newAstNode = AstNode(p[2],p[1]['astChildList']+p[3]['astChildList'])
-		p[0]['astChildList'] = [newAstNode]
 
 def p_relational_expression(p):
 	'''relational_expression : shift_expression
@@ -385,15 +266,6 @@ def p_relational_expression(p):
 	#p[0]=("relational_expression",)+tuple(p[-len(p)+1:])
 	if(len(p) == 2):
 		p[0] = p[1]
-	else:
-		if(p[1]['POINTER'] == p[3]['POINTER']):
-			p[0] = {'TYPE':'int','POINTER':p[1]['POINTER']}
-		else:
-			print "Error at line number", p.lineno(1) ,": incorrect comparison "
-			sys.exit()
-		newAstNode = AstNode(p[2],p[1]['astChildList']+p[3]['astChildList'])
-		p[0]['astChildList'] = [newAstNode]
-
 
 def p_equality_expression(p):
 	'''equality_expression : relational_expression
@@ -403,14 +275,6 @@ def p_equality_expression(p):
 	#p[0]=("equality_expression",)+tuple(p[-len(p)+1:])
 	if(len(p) == 2):
 		p[0] = p[1]
-	else:
-		if(p[1]['POINTER'] == p[3]['POINTER']):
-			p[0] = {'TYPE':'int','POINTER':p[1]['POINTER']}
-		else:
-			print "Error at line number", p.lineno(1) ,": incorrect comparison"
-			sys.exit()
-		newAstNode = AstNode(p[2],p[1]['astChildList']+p[3]['astChildList'])
-		p[0]['astChildList'] = [newAstNode]
 
 def p_and_expression(p):
 	'''and_expression : equality_expression
@@ -419,14 +283,6 @@ def p_and_expression(p):
 	#p[0]=("and_expression",)+tuple(p[-len(p)+1:])
 	if(len(p) == 2):
 		p[0] = p[1]
-	else:
-		if(((str(p[1]['TYPE']) in ["char","int","short","long"]) and (str(p[3]['TYPE']) in ["char","int","short","long"])) and (p[1]['POINTER'] == 0 and p[3]['POINTER']==0) ) :
-			p[0] = {'TYPE': 'int','POINTER':0}
-		else:
-			print "Error at line number",p.lineno(1),": incorrect data types"
-			sys.exit()
-		newAstNode = AstNode(p[2],p[1]['astChildList']+p[3]['astChildList'])
-		p[0]['astChildList'] = [newAstNode]
 	
 def p_exclusive_or_expression(p):
 	'''exclusive_or_expression : and_expression
@@ -435,31 +291,14 @@ def p_exclusive_or_expression(p):
 	#p[0]=("exclusive_or_expression",)+tuple(p[-len(p)+1:])
 	if(len(p) == 2):
 		p[0] = p[1]
-	else:
-		if(((str(p[1]['TYPE']) in ["char","int","short","long"]) and (str(p[3]['TYPE']) in ["char","int","short","long"])) and (p[1]['POINTER'] == 0 and p[3]['POINTER']==0) ):
-			p[0] = {'TYPE': 'int','POINTER':0}
-		else:
-			print "Error at line number",p.lineno(1),": incorrect data types"
-			sys.exit()
-		newAstNode = AstNode(p[2],p[1]['astChildList']+p[3]['astChildList'])
-		p[0]['astChildList'] = [newAstNode]
 	
 def p_inclusive_or_expression(p):
 	'''inclusive_or_expression : exclusive_or_expression
 								| inclusive_or_expression OR_OP exclusive_or_expression '''
 	#print "inclusive_or_expression"
 	#p[0]=("inclusive_or_expression",)+tuple(p[-len(p)+1:])
-
 	if(len(p) == 2):
 		p[0] = p[1]
-	else:
-		if(((str(p[1]['TYPE']) in ["char","int","short","long"]) and (str(p[3]['TYPE']) in ["char","int","short","long"])) and (p[1]['POINTER'] == 0 and p[3]['POINTER']==0) ):
-			p[0] = {'TYPE': 'int','POINTER':0}
-		else:
-			print "Error at line number",p.lineno(1),": incorrect data types"
-			sys.exit()
-		newAstNode = AstNode(p[2],p[1]['astChildList']+p[3]['astChildList'])
-		p[0]['astChildList'] = [newAstNode]
 
 def p_logical_and_expression(p):
 	'''logical_and_expression : inclusive_or_expression
@@ -468,10 +307,6 @@ def p_logical_and_expression(p):
 	#p[0]=("logical_and_expression",)+tuple(p[-len(p)+1:])
 	if(len(p) == 2):
 		p[0] = p[1]
-	else:
-		p[0] = {'TYPE':'int','POINTER':0}
-		newAstNode = AstNode(p[2],p[1]['astChildList']+p[3]['astChildList'])
-		p[0]['astChildList'] = [newAstNode]
 
 def p_logical_or_expression(p):
 	'''logical_or_expression : logical_and_expression
@@ -481,9 +316,7 @@ def p_logical_or_expression(p):
 	if(len(p) == 2):
 		p[0] = p[1]
 	else:
-		p[0] = {'TYPE':'int','POINTER':0}
-		newAstNode = AstNode(p[2],p[1]['astChildList']+p[3]['astChildList'])
-		p[0]['astChildList'] = [newAstNode]
+		print "Rule not added logical_or_expression"
 	
 def p_conditional_expression(p):
 	'''conditional_expression : logical_or_expression
@@ -503,17 +336,11 @@ def p_assignment_expression(p):
 	if(len(p) == 2):
 		p[0] = p[1]
 	else:
-		#if(str(p[1]['TYPE']) == str(p[3]['TYPE'])):
-		#	p[0] = {'TYPE': p[1]['TYPE']}
-		result=type_cast_assign(str(p[1]['TYPE']),str(p[3]['TYPE']))
-		if(result != "error"):
-			p[0] = {'TYPE': result}
+		if(str(p[1]['TYPE']) == str(p[3]['TYPE'])):
+			p[0] = {'TYPE': p[1]['TYPE']}
 		else:
 			print "Error at line number", p.lineno(2) ,": type mismatch in assignment"
 			sys.exit()
-		newAstNode = AstNode(p[2],[p[1]['astChildList'],p[3]['astChildList']])
-		p[0]['astChildList'] = [newAstNode]
-
 
 def p_assignment_operator(p):
 	'''assignment_operator : EQUALS 
@@ -550,72 +377,55 @@ def p_declaration(p):
 					| static_assert_declaration '''
 	#print "declaration"
 	#print dict
-	global type_of_declaration
-	global FUNCTION_LIST_DECLARATION
-	global FUNCTION_LIST_DEFINITION
-
-	if(len(p) == 3):
-		pass
-
-	if(len(p) == 4):
-		if(type_of_declaration == 1) :
-			for x in p[2]:
-				if(x.has_key('TYPE')):
-					result=type_cast_assign(x['TYPE'],p[1]['TYPE'])
-
-					if(result=="error"):
-						print "Error at line number", p.lineno(2) ,": invalid assignment"
+	global declarationType
+	global FUNCTION_PROTOTYPE_DECLARATION
+	global FUNCTION_PROTOTYPE_DEFINITION
+	if(declarationType == 1) :
+		for x in p[2]:
+			if(x.has_key('TYPE')):
+				if(x['TYPE'] != p[1]['TYPE']):
+					print "Error at line number", p.lineno(2) ,": invalid assignment"
 
 
-			for x in p[2]:
-				if (currentSymbolTable.insert(x['ID'],{'TYPE':p[1]['TYPE'],'STATIC':0,'ARRAY': x['ARRAY'],'INDEX1':x['INDEX1'],'INDEX2':x['INDEX2'],'SCOPETYPE':'GLOBAL','POINTER':x['POINTER'],'astChildList':x['astChildList']}) == False):
-					print x['ID'],': Variable already declared '
-					sys.exit()
-				else:
-					x['SCOPETYPE'] = 'GLOBAL'
-					check = currentSymbolTable.lookupCurrentTable(x['ID'])
-					#print check
-					x['TYPE'] = p[1]['TYPE']
-					x['offset'] = check['offset']
-					x['STATIC'] = 0
-					#print "current"
-					#print currentSymbolTable.symbols
-			newAstNode = AstNode(p[1]['TYPE'],[])
-			for n in p[2]:
-				newAstNode.astChildList += n['astChildList']
-			p[0] = {'astChildList':[newAstNode]}
-			#p[0]['astChildList'] = [newAstNode]
-
-		else:
-			inp=[]
-			ptr = []
-			if(len(p[2][0]) <= 2 ):
-				inp = ['void']
-				ptr = [0]
+		for x in p[2]:
+			if (currentSymbolTable.insert(x['ID'],{'TYPE':p[1]['TYPE'],'STATIC':0,'ARRAY': x['ARRAY'],'INDEX1':x['INDEX1'],'INDEX2':x['INDEX2'],'SCOPETYPE':'GLOBAL'}) == False):
+				print x['ID'],': Variable already declared '
+				sys.exit()
 			else:
-				for i in p[2][0][1]:
-					inp=inp+[i[0]['TYPE']]
-					ptr=ptr+[i[1]['POINTER']]
-			
-			p[0] = {'NODE_TYPE':'function_declaration', 'OUTPUT':p[1]['TYPE'], 'INPUT': inp, 'IDENTIFIER': p[2][0][0],'partProgram':'','OUTPUT POINTER':p[2][0][-1],'INPUT POINTERS':ptr}
-			#print p[2][1][0]
-			flag = 0
-			for func in FUNCTION_LIST_DECLARATION :
-					if(p[2][0][0] in func['NAME'] or p[2][0][0] == 'main'):
-						print "Error at line number", p.lineno(1) ,":function already declared"
-						flag = 1
-						break
-			for func in FUNCTION_LIST_DEFINITION :
-					if(p[2][0][0] in func['NAME'] or p[2][0][0] == 'main'):
-						print "Error at line number", p.lineno(1) ,":function already declared"
-						flag = 1
-						break
-			#print p[2][1][0]
-			if(flag != 1):
-				CURRENT_DECLARATION = [{"NAME":p[2][0][0],"INPUT":inp,"OUTPUT":p[1]['TYPE'],'OUTPUT POINTER':p[2][0][-1],'INPUT POINTERS':ptr}]
-				FUNCTION_LIST_DECLARATION = FUNCTION_LIST_DECLARATION + CURRENT_DECLARATION
-				parameter_symbol_table = SymbolTable(-1)	
-		type_of_declaration = 0
+				x['SCOPETYPE'] = 'GLOBAL'
+				check = currentSymbolTable.lookupCurrentTable(x['ID'])
+				#print check
+				x['TYPE'] = p[1]['TYPE']
+				x['offset'] = check['offset']
+				x['STATIC'] = 0
+				#print "current"
+				#print currentSymbolTable.symbols
+	else:
+		inp=[]
+		if(len(p[2][0]) == 1):
+			inp = ['void']
+		else:
+			for i in p[2][0][1]:
+				inp=inp+[i[0]['TYPE']]
+		p[0] = {'NODE_TYPE':'function_definition', 'OUTPUT':p[1]['TYPE'], 'INPUT': inp, 'IDENTIFIER': p[2][0][0],'partProgram':''}
+		#print p[2][1][0]
+		flag = 0
+		for func in FUNCTION_PROTOTYPE_DECLARATION :
+				if(p[2][0][0] in func['NAME'] or p[2][0][0] == 'main'):
+					print "Error at line number", p.lineno(1) ,":function already declared"
+					flag = 1
+					break
+		for func in FUNCTION_PROTOTYPE_DEFINITION :
+				if(p[2][0][0] in func['NAME'] or p[2][0][0] == 'main'):
+					print "Error at line number", p.lineno(1) ,":function already declared"
+					flag = 1
+					break
+		#print p[2][1][0]
+		if(flag != 1):
+			CURRENT_DECLARATION = [{"NAME":p[2][0][0],"INPUT":inp,"OUTPUT":p[1]['TYPE']}]
+			FUNCTION_PROTOTYPE_DECLARATION = FUNCTION_PROTOTYPE_DECLARATION + CURRENT_DECLARATION
+			parametersymboltable = SymbolTable(-1)	
+	declarationType = 0
 
 	#p[0]=("declaration",)+tuple(p[-len(p)+1:])
 		
@@ -643,7 +453,7 @@ def p_init_declarator_list(p):
 	if(len(p) == 2):
 		p[0] = [p[1]]
 	else:
-		p[0] = p[1] + [p[3]]
+		p[0] = p[1] + [p[3]];
 
 def p_init_declarator(p):
 	'''init_declarator : declarator EQUALS initializer
@@ -652,15 +462,9 @@ def p_init_declarator(p):
 	#p[0]=("init_declarator",)+tuple(p[-len(p)+1:])
 	if(len(p) == 4):
 		if(p[3].has_key('TYPE')):
-			if(str(p[3]['POINTER']) != str(p[1]['POINTER'])):
-				print "Warning at line number", p.lineno(1), "initialization from incompatible pointer type " 
-			p[0] = {'INDEX2': p[1]['INDEX2'], 'NODE_TYPE': 'var_decl_id', 'INDEX1': p[1]['INDEX1'], 'ARRAY': p[1]['ARRAY'], 'ID': p[1]['ID'], 'TYPE':p[3]['TYPE'],'POINTER':int(p[1]['POINTER'])}
+			p[0] = {'INDEX2': p[1]['INDEX2'], 'NODE_TYPE': 'var_decl_id', 'INDEX1': p[1]['INDEX1'], 'ARRAY': p[1]['ARRAY'], 'ID': p[1]['ID'], 'TYPE':p[3]['TYPE']}
 		else:
-			if(str(p[3]['OUTPUT']) != str(p[1]['POINTER'])):
-				print "Warning at line number", p.lineno(1), "initialization from incompatible pointer type " 
-			p[0] = {'INDEX2': p[1]['INDEX2'], 'NODE_TYPE': 'var_decl_id', 'INDEX1': p[1]['INDEX1'], 'ARRAY': p[1]['ARRAY'], 'ID': p[1]['ID'], 'TYPE':p[3]['OUTPUT'],'POINTER':int(p[1]['POINTER'])}
-		newAstNode = AstNode(p[2],p[1]['astChildList']+p[3]['astChildList'])
-		p[0]['astChildList'] = [newAstNode]
+			p[0] = {'INDEX2': p[1]['INDEX2'], 'NODE_TYPE': 'var_decl_id', 'INDEX1': p[1]['INDEX1'], 'ARRAY': p[1]['ARRAY'], 'ID': p[1]['ID'], 'TYPE':p[3]['OUTPUT']}
 	else:
 		p[0] = p[1]
 		
@@ -697,75 +501,33 @@ def p_type_specifier2(p):
 						| enum_specifier '''
 	#print "type_specifier"
 	#p[0]=("type_specifier",)+tuple(p[-len(p)+1:])
-	if (currentSymbolTable.insert(p[1]['ID'],{'TYPE':p[1]['TYPE'],'STATIC':0,'ARRAY': p[1]['ARRAY'],'INDEX1':p[1]['INDEX1'],'INDEX2':p[1]['INDEX2'],'POINTER':int(p[1]['POINTER']),'astChildList':p[1]['astChildList']}) == False):
-		print p[1]['ID'],': Variable already declared '
-		sys.exit()
-	else:
-		check = currentSymbolTable.lookupCurrentTable(p[1]['ID'])
-		#print check
-		p[1]['offset'] = check['offset']
-		p[1]['STATIC'] = 0
-		#print "current"
-		#print currentSymbolTable.symbols
-	p[0] = p[1]
+	print "struct rules"
 
 def p_struct_or_union_specifier(p):
 	'''struct_or_union_specifier : struct_or_union left_brace struct_declaration_list right_brace
-								| struct_or_union struct_name left_brace struct_declaration_list right_brace
-								| struct_or_union struct_name '''
+								| struct_or_union IDENTIFIER left_brace struct_declaration_list right_brace
+								| struct_or_union IDENTIFIER '''
 	#print "struct_or_union_specifier"
 	#p[0]=("struct_or_union_specifier",)+tuple(p[-len(p)+1:])
-	if(len(p) == 6):
-		p[0] = {'NODE_TYPE': 'struct_decl','TYPE':p[1],'ARRAY':0, 'ID' : p[2], 'INDEX1': '','INDEX2':'','POINTER':0}
-		#print p[0]['TYPE']
-
-def p_struct_name(p):
-	'''struct_name : IDENTIFIER '''
-	p[0] = p[1]
-	global currentStructName
-	currentStructName = p[1]
-
+	
 def p_struct_or_union(p):
 	'''struct_or_union : STRUCT
 						| UNION '''
 	#print "struct_or_union"
 	#p[0]=("struct_or_union",)+tuple(p[-len(p)+1:])
-	p[0] = p[1]
-	global structDeclarationCount
-	structDeclarationCount = structDeclarationCount + 1
-
-
+	
 def p_struct_declaration_list(p):
 	'''struct_declaration_list : struct_declaration
 								| struct_declaration_list struct_declaration '''
 	#print "struct_declaration_list"
 	#p[0]=("struct_declaration_list",)+tuple(p[-len(p)+1:])
-	if(len(p) == 2):
-		p[0] = [p[1]]
-	else:
-		p[0] = p[1] + [p[2]]
-
+	
 def p_struct_declaration(p):
 	'''struct_declaration : specifier_qualifier_list SEMI 
 							| specifier_qualifier_list struct_declarator_list SEMI
 							| static_assert_declaration '''
 	#print "struct_declaration"
 	#p[0]=("struct_declaration",)+tuple(p[-len(p)+1:])
-	if(len(p) == 4):
-		for x in p[2]:
-			if (currentSymbolTable.insert(x['ID'],{'TYPE':p[1]['TYPE'],'STATIC':0,'ARRAY': x['ARRAY'],'INDEX1':x['INDEX1'],'INDEX2':x['INDEX2'],'SCOPETYPE':'GLOBAL','POINTER':x['POINTER'],'astChildList':x['astChildList']}) == False):
-				print x['ID'],': Variable already declared '
-				sys.exit()
-			else:
-				x['SCOPETYPE'] = 'GLOBAL'
-				check = currentSymbolTable.lookupCurrentTable(x['ID'])
-				#print check
-				x['TYPE'] = p[1]['TYPE']
-				x['offset'] = check['offset']
-				x['STATIC'] = 0
-				#print "current"
-				#print currentSymbolTable.symbols
-	#print "warning:: you forgot to update p[0] here"
 
 def p_specifier_qualifier_list(p):
 	'''specifier_qualifier_list : type_specifier specifier_qualifier_list
@@ -782,20 +544,14 @@ def p_struct_declarator_list(p):
 								| struct_declarator_list COMMA struct_declarator '''
 	#print "struct_declarator_list"
 	#p[0]=("struct_declarator_list",)+tuple(p[-len(p)+1:])                       #changetoken
-	if(len(p) == 2):
-		p[0] = [p[1]]
-	else:
-		p[0] = p[1] + [p[3]]
-
+	
 def p_struct_declarator(p):
 	'''struct_declarator : COLON constant_expression
 							| declarator COLON constant_expression
 							| declarator '''
 	#print "struct_declarator"
 	#p[0]=("struct_declarator",)+tuple(p[-len(p)+1:])                        #changetoken
-	if(len(p) == 2):
-		p[0] = p[1]
-
+	
 def p_enum_specifier(p):
 	'''enum_specifier : ENUM left_brace enumerator_list right_brace
 						| ENUM left_brace enumerator_list COMMA right_brace
@@ -844,31 +600,22 @@ def p_declarator(p):
 	#p[0]=("declarator",)+tuple(p[-len(p)+1:])
 	if(len(p) == 2):
 		p[0] = p[1]
-		if(type_of_declaration == -1):
-			p[0] += [0]
-	else:
-		if(type_of_declaration == 1):
-			p[0] = {'astChildList':p[2]['astChildList'],'POINTER':int(p[1]),'INDEX2': p[2]['INDEX2'], 'NODE_TYPE': p[2]['NODE_TYPE'], 'INDEX1': p[2]['INDEX1'], 'ARRAY': p[2]['ARRAY'], 'ID': p[2]['ID']}
-		else:
-			p[0] = p[2]	+ [int(p[1])]
 
 def p_direct_declarator(p):
 	'''direct_declarator : IDENTIFIER
 							| IDENTIFIER LBRACKET arrayindex RBRACKET
 							| IDENTIFIER LBRACKET arrayindex RBRACKET LBRACKET arrayindex RBRACKET '''
 	#print "direct_declarator"
-	global type_of_declaration
-	type_of_declaration = 1
+	global declarationType
+	declarationType = 1
 	if(len(p) == 2 ):
-		p[0] = {'NODE_TYPE' : 'var_decl_id', 'ARRAY':0, 'ID' : p[1], 'INDEX1': 0,'INDEX2':0,'POINTER':0}
+		p[0] = {'NODE_TYPE' : 'var_decl_id', 'ARRAY':0, 'ID' : p[1], 'INDEX1': '','INDEX2':''}
 	elif(len(p) == 5):
-		p[0] = {'NODE_TYPE': 'var_decl_id','ARRAY':1, 'ID' : p[1], 'INDEX1': p[3],'INDEX2':'','POINTER':1}
+		p[0] = {'NODE_TYPE': 'var_decl_id','ARRAY':1, 'ID' : p[1], 'INDEX1': p[3],'INDEX2':''}
 	else:
-		p[0] = {'NODE_TYPE': 'var_decl_id','ARRAY':2, 'ID' : p[1], 'INDEX1': p[3],'INDEX2':p[6],'POINTER':2}
+		p[0] = {'NODE_TYPE': 'var_decl_id','ARRAY':2, 'ID' : p[1], 'INDEX1': p[3],'INDEX2':p[6]}
 		#print t[1]
 	#p[0]=("direct_declarator",)+tuple(p[-len(p)+1:])
-	newAstNode = AstNode(p[1],[])
-	p[0]['astChildList'] = [newAstNode]
 
 def p_arrayindex(p):
 	'''arrayindex : IDENTIFIER
@@ -880,16 +627,15 @@ def p_direct_declarator2(p):
 							| IDENTIFIER LBRACKET RBRACKET LBRACKET RBRACKET
 							| IDENTIFIER LBRACKET RBRACKET LBRACKET arrayindex RBRACKET '''
 	#print "direct_declarator"
-	global type_of_declaration
-	type_of_declaration = 1
+	global declarationType
+	declarationType = 1
 	if(len(p) == 4 ):
-		p[0] = {'NODE_TYPE' : 'var_decl_id', 'ARRAY':1, 'ID' : p[1], 'INDEX1': '0','INDEX2':'','POINTER':0}
+		p[0] = {'NODE_TYPE' : 'var_decl_id', 'ARRAY':1, 'ID' : p[1], 'INDEX1': '0','INDEX2':''}
 	elif(len(p) == 6):
-		p[0] = {'NODE_TYPE': 'var_decl_id','ARRAY':2, 'ID' : p[1], 'INDEX1': '0','INDEX2':'0','POINTER':1}
+		p[0] = {'NODE_TYPE': 'var_decl_id','ARRAY':2, 'ID' : p[1], 'INDEX1': '0','INDEX2':'0'}
 	else:
-		p[0] = {'NODE_TYPE': 'var_decl_id','ARRAY':2, 'ID' : p[1], 'INDEX1': '0','INDEX2':p[5],'POINTER':2}
-	newAstNode = AstNode(p[1],[])
-	p[0]['astChildList'] = [newAstNode]
+		p[0] = {'NODE_TYPE': 'var_decl_id','ARRAY':2, 'ID' : p[1], 'INDEX1': '0','INDEX2':p[5]}
+
 
 def p_direct_declarator3(p):
 	'''direct_declarator : IDENTIFIER LPAREN parameter_type_list RPAREN
@@ -897,8 +643,8 @@ def p_direct_declarator3(p):
 	#print "direct_declarator"
 		#print t[1]
 	#p[0]=("direct_declarator",)+tuple(p[-len(p)+1:])
-	global type_of_declaration
-	type_of_declaration = -1
+	global declarationType
+	declarationType = -1
 
 	if(len(p)==5):
 		p[0] = [p[1]]+[p[3]]
@@ -909,22 +655,13 @@ def p_direct_declarator3(p):
 
 
 def p_pointer(p):
-	'''pointer : TIMES pointer
+	'''pointer : TIMES type_qualifier_list pointer
+				| TIMES type_qualifier_list 
+				| TIMES pointer
 				| TIMES '''
 	#print "pointer"
 	#p[0]=("pointer",)+tuple(p[-len(p)+1:])
-	if(len(p) == 2):
-		p[0] = 1
-	else:
-		p[0] = p[2] + 1
-
-def p_pointer2(p):
-	'''pointer : TIMES type_qualifier_list pointer
-				| TIMES type_qualifier_list '''
-	#print "pointer"
-	#p[0]=("pointer",)+tuple(p[-len(p)+1:])
-
-
+	
 def p_type_qualifier_list(p):
 	'''type_qualifier_list : type_qualifier
 							| type_qualifier_list type_qualifier '''
@@ -946,14 +683,14 @@ def p_parameter_list(p):
 	if(len(p)==2):
 		p[0]=[p[1]]
 		if(len(p[1]) > 1):
-			parameter_symbol_table.insert(p[1][1]['ID'],{'TYPE':p[1][0]['TYPE'],'ARRAY':p[1][1]['ARRAY'],'SCOPETYPE':'PARAMETER','INDEX1':p[1][1]['INDEX1'],'STATIC':0,'POINTER':int(p[1][1]['POINTER']),'astChildList':p[1][1]['astChildList']})
+			parametersymboltable.insert(p[1][1]['ID'],{'TYPE':p[1][0]['TYPE'],'ARRAY':p[1][1]['ARRAY'],'SCOPETYPE':'PARAMETER','INDEX1':0,'STATIC':0})
 
 	if(len(p)==4):
 		p[0]=p[1]+[p[3]]
 		if(len(p[3]) > 1):
-			parameter_symbol_table.insert(p[3][1]['ID'],{'TYPE':p[3][0]['TYPE'],'ARRAY':p[3][1]['ARRAY'],'SCOPETYPE':'PARAMETER','INDEX1':p[3][1]['INDEX1'],'STATIC':0,'POINTER':int(p[3][1]['POINTER']),'astChildList':p[3][1]['astChildList']})
+			parametersymboltable.insert(p[3][1]['ID'],{'TYPE':p[3][0]['TYPE'],'ARRAY':p[3][1]['ARRAY'],'SCOPETYPE':'PARAMETER','INDEX1':0,'STATIC':0})
 	#print "para---"
-	#print parameter_symbol_table.symbols
+	#print parametersymboltable.symbols
 
 
 def p_parameter_declaration(p):
@@ -1024,7 +761,6 @@ def p_initializer(p):
 	if(len(p) == 2):
 		p[0] = p[1]
 
-
 def p_initializer_list(p):
 	'''initializer_list : designation initializer
 						| initializer
@@ -1079,28 +815,19 @@ def p_compound_statement(p):
 							| left_brace block_item_list right_brace '''
 	#print "compound_statement"
 	#p[0]=("compound_statement",)+tuple(p[-len(p)+1:])
-	if(len(p) == 3):
-		p[0] = {'astChildList':[]}
-	else:
-		p[0] = p[2]
-
+	
 def p_block_item_list(p):
 	'''block_item_list : block_item
 						| block_item_list block_item '''
 	#print "block_item_list"
 	#p[0]=("block_item_list",)+tuple(p[-len(p)+1:])
-	if(len(p) == 2):
-		p[0] = [p[1]]
-	else:
-		p[0] = p[1] + [p[2]]
-
+	
 def p_block_item(p):
 	'''block_item : declaration
 					| statement '''
 	#print "block_item"
 	#p[0]=("block_item",)+tuple(p[-len(p)+1:])
-	p[0] = p[1]
-
+	
 def p_expression_statement(p):
 	'''expression_statement : SEMI 
 							| expression SEMI  '''
@@ -1151,7 +878,6 @@ def p_external_declaration(p):
 							| declaration '''
 	#print "external_declaration"
 	#p[0]=("external_declaration",)+tuple(p[-len(p)+1:])
-	p[0] = p[1]
 
 def p_function_definition(p):
 	'''function_definition : declaration_specifiers declarator declaration_list compound_statement
@@ -1159,10 +885,10 @@ def p_function_definition(p):
 	#print "function_definition"
 	#p[0]=("function_definition",)+tuple(p[-len(p)+1:])
 	
-	global FUNCTION_LIST_DEFINITION
-	global FUNCTION_LIST_DECLARATION
+	global FUNCTION_PROTOTYPE_DEFINITION
+	global FUNCTION_PROTOTYPE_DECLARATION
 	global functions
-	global parameter_symbol_table
+	global parametersymboltable
 	global returnSpecifier
 
 	#--------- return type check of a function
@@ -1183,7 +909,7 @@ def p_function_definition(p):
 	if(len(p) == 5 ):
 		p[0] = {'NODE_TYPE':'function_declaration', 'OUTPUT':p[1]['TYPE'], 'INPUT': p[2][0], 'IDENTIFIER': p[2][0],'partProgram': p[4]}
 		flag = 0
-		for func in FUNCTION_LIST_DECLARATION :
+		for func in FUNCTION_PROTOTYPE_DECLARATION :
 				#print t[2]
 				if(p[2][0] in func['NAME'] or p[2][0] == 'main'):
 					flag=1
@@ -1191,34 +917,30 @@ def p_function_definition(p):
 					break
 		if(flag != 1):
 			print "function definition missing for ",p[2][0]
-			currentfunction = {'Function Detail':p[0],'symboltable':parameter_symbol_table}
+			currentfunction = {'Function Detail':p[0],'symboltable':parametersymboltable}
 			functions = functions + [currentfunction]
 			CURRENT_DECLARATION = [{"NAME":p[2][0],"INPUT":p[2][0],"OUTPUT":p[1]['TYPE']}]
-			FUNCTION_LIST_DEFINITION = FUNCTION_LIST_DEFINITION + CURRENT_DECLARATION
-			parameter_symbol_table = SymbolTable(-1)	
+			FUNCTION_PROTOTYPE_DEFINITION = FUNCTION_PROTOTYPE_DEFINITION + CURRENT_DECLARATION
+			parametersymboltable = SymbolTable(-1)	
 
 			
 	elif(len(p) == 4 ):
 		inp=[]
-		ptr = []
-		#print p[2][-1]
-		if(len(p[2]) <= 2):
+		if(len(p[2]) == 1):
 			inp = ['void']
-			ptr = [0]
 		else:
 			for i in p[2][1]:
 				inp=inp+[i[0]['TYPE']]
-				ptr=ptr+[i[1]['POINTER']]
-		p[0] = {'NODE_TYPE':'function_declaration', 'OUTPUT':p[1]['TYPE'], 'INPUT': inp, 'IDENTIFIER': p[2][0],'OUTPUT POINTER':p[2][-1],'INPUT POINTERS':ptr}
+		p[0] = {'NODE_TYPE':'function_declaration', 'OUTPUT':p[1]['TYPE'], 'INPUT': inp, 'IDENTIFIER': p[2][0],'partProgram': p[3]}
 		#print p[2][1][0]
 		flag = 0
-		for func in FUNCTION_LIST_DECLARATION :
+		for func in FUNCTION_PROTOTYPE_DECLARATION :
 			if(p[2][0] in func['NAME']):
-				if(str(func['INPUT']) != str(inp) or str(func['INPUT POINTERS']) != str(ptr)):
+				if(str(func['INPUT']) != str(inp)):
 					print "Error at line number", p.lineno(1) ,":function definition mismatch errors"
 					sys.exit()
 					#raise SyntaxError
-		for func in FUNCTION_LIST_DEFINITION :
+		for func in FUNCTION_PROTOTYPE_DEFINITION :
 				if(p[2][0] in func['NAME']):
 					flag=1
 					print "Error at line number", p.lineno(1) ,":function already defined"
@@ -1228,22 +950,16 @@ def p_function_definition(p):
 		if(flag != 1):
 			#print p[2][1][0]
 			#print "function definition missing for ",p[2][0]
-			currentfunction = {'Function Detail':p[0],'symboltable':parameter_symbol_table}
+			currentfunction = {'Function Detail':p[0],'symboltable':parametersymboltable}
 			#print p[2][1][0]
 			functions = functions + [currentfunction]
-			CURRENT_DECLARATION = [{"NAME":p[2][0],"INPUT":inp,"OUTPUT":p[1]['TYPE'],'OUTPUT POINTER':p[2][-1],'INPUT POINTERS':ptr}]
+			CURRENT_DECLARATION = [{"NAME":p[2][0],"INPUT":inp,"OUTPUT":p[1]['TYPE']}]
 			#print len(p[2][1][0])
-			FUNCTION_LIST_DEFINITION = FUNCTION_LIST_DEFINITION + CURRENT_DECLARATION
-			parameter_symbol_table = SymbolTable(-1)
-		newAstNode = AstNode(p[1]['TYPE'],[])
-		newFunAstNode = AstNode(p[2][0],[])
-		for n in p[3]:
-			newFunAstNode.astChildList += n['astChildList']
-			#print type(n)
-			#print p[3]
-		newAstNode.astChildList += [newFunAstNode]
-		p[0] = {}	
-		p[0]['astChildList'] = [newAstNode]
+			FUNCTION_PROTOTYPE_DEFINITION = FUNCTION_PROTOTYPE_DEFINITION + CURRENT_DECLARATION
+			parametersymboltable = SymbolTable(-1)
+			
+	
+
 
 def p_declaration_list(p):
 	'''declaration_list : declaration
@@ -1263,16 +979,8 @@ def p_leftbrace(p):
 					'''
 	#p[0] = p[1]
 	#print "-----Making NewSymbolTable---------"
-	global structDeclarationCount
 	global currentSymbolTable
-	global currentStructName
-
-	#currentSymbolTable.structChildList += [SymbolTable.TableNumber]
 	currentSymbolTable = SymbolTable(currentSymbolTable)
-	if(structDeclarationCount > 0):
-		currentSymbolTable.isStructTable = True
-		currentSymbolTable.structName = currentStructName
-		currentSymbolTable.father.structChildList += [currentSymbolTable]
 
 def p_righttbrace(p):
 	''' right_brace : RBRACE
@@ -1280,13 +988,7 @@ def p_righttbrace(p):
 	#p[0] = p[1]
 	#print "--------EXITING CURRENT SYMBOL TABLE--------------"
 	global currentSymbolTable
-	global structDeclarationCount
-	global currentStructName
-
-	currentStructName = ''
 	currentSymbolTable = currentSymbolTable.father
-	if(structDeclarationCount > 0):
-		structDeclarationCount = structDeclarationCount - 1
 
 
 
@@ -1321,16 +1023,8 @@ if __name__ == "__main__":
 		tree = yacc.parse(data,tracking=True)
 		if tree is not None and flag_for_error == 0:
 			#createParseTree.create_tree(tree,str(sys.argv[1]))
-			#print "Parse tree created : "+str(sys.argv[1])+"tree.svg"
+			print "Parse tree created : "+str(sys.argv[1])+"tree.svg"
 			#os.system("eog "+str(sys.argv[1])+"tree.svg")
-			rootAstNode = AstNode("AST_ROOT_NODE",[])
-			for n in tree:
-				rootAstNode.astChildList += n['astChildList']
-			#createAST.create_tree(rootAstNode,str(sys.argv[1]))
-			#os.system("eog "+str(sys.argv[1])+"tree.svg")
-			#print rootAstNode.astChildList[1].astChildList[0].astChildList[1].astChildList[0].astChildList[1].astChildList
-
-
 		#yacc.yacc(method='LALR',write_tables=False,debug=False)
 
 		#profile.run("yacc.yacc(method='LALR')")
