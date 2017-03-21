@@ -16,6 +16,9 @@ from createAST import *
 
 global type_of_declaration
 type_of_declaration = 0		#0 default 1 for var declaraion -1 for func declaration
+global varNode
+varNode = []
+
 global functionDefinition
 functionDefinition = 0  #0 default 1 if it is a function defintion
 
@@ -593,9 +596,12 @@ def p_declaration(p):
 					if(result=="error"):
 						print "Error at line number", p.lineno(2) ,": invalid assignment"
 
-
+			global varNode
+			itr = -1
 			for x in p[2]:
-				if (currentSymbolTable.insert(x['ID'],{'TYPE':p[1]['TYPE'],'STATIC':0,'ARRAY': x['ARRAY'],'INDEX1':x['INDEX1'],'INDEX2':x['INDEX2'],'SCOPETYPE':'GLOBAL','POINTER':x['POINTER'],'astChildList':x['astChildList']}) == False):
+				itr = itr + 1
+				#if (currentSymbolTable.insert(x['ID'],{'TYPE':p[1]['TYPE'],'STATIC':0,'ARRAY': x['ARRAY'],'INDEX1':x['INDEX1'],'INDEX2':x['INDEX2'],'SCOPETYPE':'GLOBAL','POINTER':x['POINTER'],'astChildList':x['astChildList']}) == False):
+				if (currentSymbolTable.insert(x['ID'],{'TYPE':p[1]['TYPE'],'STATIC':0,'ARRAY': x['ARRAY'],'INDEX1':x['INDEX1'],'INDEX2':x['INDEX2'],'SCOPETYPE':'GLOBAL','POINTER':x['POINTER'],'astChildList':[varNode[itr]]}) == False):
 					print x['ID'],': Variable already declared '
 					sys.exit()
 				else:
@@ -612,7 +618,7 @@ def p_declaration(p):
 				newAstNode.astChildList += n['astChildList']
 			p[0] = {'astChildList':[newAstNode]}
 			#p[0]['astChildList'] = [newAstNode]
-
+			varNode = []
 		else:
 			inp=[]
 			ptr = []
@@ -689,11 +695,13 @@ def p_init_declarator(p):
 						| declarator '''
 	#print "init_declarator"
 	#p[0]=("init_declarator",)+tuple(p[-len(p)+1:])
+	global varNode
 	if(len(p) == 4):
 		if(p[3].has_key('TYPE')):
 			if(str(p[3]['POINTER']) != str(p[1]['POINTER'])):
 				print "Warning at line number", p.lineno(1), "initialization from incompatible pointer type " 
 			p[0] = {'INDEX2': p[1]['INDEX2'], 'NODE_TYPE': 'var_decl_id', 'INDEX1': p[1]['INDEX1'], 'ARRAY': p[1]['ARRAY'], 'ID': p[1]['ID'], 'TYPE':p[3]['TYPE'],'POINTER':int(p[1]['POINTER'])}
+			varNode += [p[1]['astChildList'][0]]
 		else:
 			if(str(p[3]['OUTPUT']) != str(p[1]['POINTER'])):
 				print "Warning at line number", p.lineno(1), "initialization from incompatible pointer type " 
@@ -702,6 +710,7 @@ def p_init_declarator(p):
 		p[0]['astChildList'] = [newAstNode]
 	else:
 		p[0] = p[1]
+		varNode += [p[1]['astChildList'][0]]
 		
 def p_storage_class_specifier(p):
 	'''storage_class_specifier : TYPEDEF

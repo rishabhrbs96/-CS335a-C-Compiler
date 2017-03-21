@@ -1,4 +1,7 @@
 int main() {
-	int a = 2;
-	int b = a;
+	int a;
+	for(a = 0;a>2;a++) {
+		
+	}
+	
 }
