@@ -1,7 +1,10 @@
-int f(int a) {
-
-}
 
 int main() {
-	int a = f(f(2));
+	struct s{
+		int d;
+		struct s2{
+			int c;
+		};
+	} a;
+
 }

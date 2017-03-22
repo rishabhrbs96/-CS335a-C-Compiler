@@ -298,7 +298,6 @@ def p_argument_expression_list(p):
 		if(p[1].has_key('TYPE')):
 			p[0] = {'TYPE':[p[1]['TYPE']],'astChildList':p[1]['astChildList']}
 		else:
-			print p[1]
 			p[0] = {'OUTPUT':[p[1]['OUTPUT']],'astChildList':p[1]['astChildList']}
 	else:
 		if(p[3].has_key('TYPE')):
@@ -409,8 +408,6 @@ def p_shift_expression(p):
 		if(((str(p[1]['TYPE']) in ["char","int","short","long"]) and (str(p[3]['TYPE']) in ["char","int","short","long"])) and (p[1]['POINTER'] == 0 and p[3]['POINTER']==0) ) :
 			p[0] = {'TYPE': 'int','POINTER':0}
 		else:
-			print (p[1]['POINTER'])
-			print (p[3]['POINTER'])
 			print "Error at line number",p.lineno(1),": incorrect data types , shift operation between",str(p[1]['TYPE']),(p[1]['POINTER'])*"*","and",str(p[3]['TYPE']),(p[3]['POINTER'])*"*"
 			sys.exit()
 		newAstNode = AstNode(p[2],p[1]['astChildList']+p[3]['astChildList'])
@@ -616,7 +613,6 @@ def p_declaration(p):
 
 			global varNode
 			itr = -1
-			print "==============",varNode
 			for x in p[2]:
 				itr = itr + 1
 				#if (currentSymbolTable.insert(x['ID'],{'TYPE':p[1]['TYPE'],'STATIC':0,'ARRAY': x['ARRAY'],'INDEX1':x['INDEX1'],'INDEX2':x['INDEX2'],'SCOPETYPE':'GLOBAL','POINTER':x['POINTER'],'astChildList':x['astChildList']}) == False):
@@ -768,18 +764,8 @@ def p_type_specifier2(p):
 						| enum_specifier '''
 	#print "type_specifier"
 	#p[0]=("type_specifier",)+tuple(p[-len(p)+1:])
-	if (currentSymbolTable.insert(p[1]['ID'],{'TYPE':p[1]['TYPE'],'STATIC':0,'ARRAY': p[1]['ARRAY'],'INDEX1':p[1]['INDEX1'],'INDEX2':p[1]['INDEX2'],'POINTER':int(p[1]['POINTER']),'astChildList':p[1]['astChildList']}) == False):
-		print p[1]['ID'],': Variable already declared '
-		sys.exit()
-	else:
-		check = currentSymbolTable.lookupCurrentTable(p[1]['ID'])
-		#print check
-		p[1]['offset'] = check['offset']
-		p[1]['STATIC'] = 0
-		#print "current"
-		#print currentSymbolTable.symbols
 	p[0] = p[1]
-
+	
 def p_struct_or_union_specifier(p):
 	'''struct_or_union_specifier : struct_or_union left_brace struct_declaration_list right_brace
 								| struct_or_union struct_name left_brace struct_declaration_list right_brace
@@ -787,14 +773,35 @@ def p_struct_or_union_specifier(p):
 	#print "struct_or_union_specifier"
 	#p[0]=("struct_or_union_specifier",)+tuple(p[-len(p)+1:])
 	if(len(p) == 6):
-		p[0] = {'NODE_TYPE': 'struct_decl','TYPE':p[1],'ARRAY':0, 'ID' : p[2], 'INDEX1': '','INDEX2':'','POINTER':0,'astChildList':[]}
+		newAstNode = AstNode("struct",[AstNode("STRUCT-NAME",p[2]['astChildList'])])
+		newAstNode2 = AstNode("STRUCT-BODY",[])
+		if(type(p[4]) is list):
+			for n in p[4]:
+				newAstNode2.astChildList += n['astChildList']
+		else:
+			newAstNode2.astChildList += p[4]['astChildList']
+		newAstNode.astChildList += [newAstNode2]
+		p[0] = {'NODE_TYPE': 'struct_decl','TYPE':p[1],'ARRAY':0, 'ID' : p[2]['ID'], 'INDEX1': '','INDEX2':'','POINTER':0,'astChildList':[newAstNode]}
+		if (currentSymbolTable.insert(p[2]['ID'],{'TYPE':p[1],'STATIC':0,'ARRAY': 0,'INDEX1':'','INDEX2':'','POINTER':0,'astChildList':p[2]['astChildList']}) == False):
+			print p[2]['ID'],': Variable already declared '
+			sys.exit()
+		else:
+			check = currentSymbolTable.lookupCurrentTable(p[2]['ID'])
+			#print check
+			p[0]['offset'] = check['offset']
+			p[0]['STATIC'] = 0
+			#print "current"
+			#print currentSymbolTable.symbols
+
+
 		#print p[0]['TYPE']
 
 def p_struct_name(p):
 	'''struct_name : IDENTIFIER '''
-	p[0] = p[1]
 	global currentStructName
 	currentStructName = p[1]
+	newAstNode = AstNode(p[1],[])
+	p[0] = {'ID':p[1],'astChildList':[newAstNode]}
 
 def p_struct_or_union(p):
 	'''struct_or_union : STRUCT
@@ -824,6 +831,7 @@ def p_struct_declaration(p):
 	#p[0]=("struct_declaration",)+tuple(p[-len(p)+1:])
 	if(len(p) == 4):
 		for x in p[2]:
+			p[1]['astChildList'][0].astChildList += x['astChildList']
 			if (currentSymbolTable.insert(x['ID'],{'TYPE':p[1]['TYPE'],'STATIC':0,'ARRAY': x['ARRAY'],'INDEX1':x['INDEX1'],'INDEX2':x['INDEX2'],'SCOPETYPE':'GLOBAL','POINTER':x['POINTER'],'astChildList':x['astChildList']}) == False):
 				print x['ID'],': Variable already declared '
 				sys.exit()
@@ -837,6 +845,7 @@ def p_struct_declaration(p):
 				#print "current"
 				#print currentSymbolTable.symbols
 	#print "warning:: you forgot to update p[0] here"
+	p[0] = p[1]
 
 def p_specifier_qualifier_list(p):
 	'''specifier_qualifier_list : type_specifier specifier_qualifier_list

@@ -2,28 +2,32 @@ graph {
 	0 [label=AST_ROOT_NODE]
 	1 [label=int]
 		0 -- 1
-	2 [label=f]
+	2 [label=main]
 		1 -- 2
-	3 [label=NULL]
+	3 [label=struct]
 		2 -- 3
-	4 [label=int]
-		1 -- 4
-	5 [label=a]
+	4 [label="STRUCT-NAME"]
+		3 -- 4
+	5 [label=s]
 		4 -- 5
-	6 [label=int]
-		0 -- 6
-	7 [label=main]
+	6 [label="STRUCT-BODY"]
+		3 -- 6
+	7 [label=int]
 		6 -- 7
-	8 [label=int]
+	8 [label=d]
 		7 -- 8
-	9 [label="="]
-		8 -- 9
-	10 [label=a]
+	9 [label=struct]
+		6 -- 9
+	10 [label="STRUCT-NAME"]
 		9 -- 10
-	11 [label=f]
-		9 -- 11
-	12 [label=f]
-		11 -- 12
-	13 [label=2]
+	11 [label=s2]
+		10 -- 11
+	12 [label="STRUCT-BODY"]
+		9 -- 12
+	13 [label=int]
 		12 -- 13
+	14 [label=c]
+		13 -- 14
+	15 [label=a]
+		3 -- 15
 }

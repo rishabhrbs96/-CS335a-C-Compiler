@@ -1,2 +1,4 @@
           Table Number = 4
-Name,Type,Pointer,Array,Index1
+Name,Type,Pointer,Array,Index1,Index2
+d,int,0,0,0,0
+s2,struct,0,0,,

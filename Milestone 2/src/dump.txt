@@ -1,15 +1,17 @@
 
 AST_ROOT_NODE
 	int
-		f
-			NULL
-		int
-			a
-	int
 		main
-			int
-				=
-					a
-					f
-						f
-							2
+			struct
+				STRUCT-NAME
+					s
+				STRUCT-BODY
+					int
+						d
+					struct
+						STRUCT-NAME
+							s2
+						STRUCT-BODY
+							int
+								c
+				a
