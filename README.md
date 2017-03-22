@@ -38,3 +38,16 @@ $ make clean
 ### Members
 * Kshitiz Suman 14333
 * Rishabh Bhardwaj 14548
+
+## Milestone 2
+### How to run
+
+Write the code in test folder of the Milestone 2 directory.Suppose that the code file name is code1.c. Then use
+```sh
+$ cd src
+$ python parser.py ../test/code1.c 
+```
+
+* The output dump is generated in dump.txt in src folder.
+
+* The symboltables are generated in the src folder with the names as their symboltablenumber.csv  . For ex: 1.csv 2.csv etc.
