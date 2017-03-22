@@ -48,6 +48,6 @@ $ cd src
 $ python parser.py ../test/code1.c 
 ```
 
-The output dump is generated in dump.txt in src folder.
-The symboltables are generated in the src folder with the names as their symboltablenumber.csv
-For ex: 1.csv 2.csv etc.
+*The output dump is generated in dump.txt in src folder.
+*The symboltables are generated in the src folder with the names as their symboltablenumber.csv
+*For ex: 1.csv 2.csv etc.
