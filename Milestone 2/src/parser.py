@@ -603,8 +603,7 @@ def p_declaration(p):
 	global FUNCTION_LIST_DEFINITION
 
 	if(len(p) == 3):
-		newAstNode = AstNode(p[1]['TYPE'],[])
-		p[0] = {'astChildList':[newAstNode]}
+		p[0] = {'astChildList':p[1]['astChildList']}
 
 	if(len(p) == 4):
 		if(type_of_declaration == 1) :
@@ -617,6 +616,7 @@ def p_declaration(p):
 
 			global varNode
 			itr = -1
+			print "==============",varNode
 			for x in p[2]:
 				itr = itr + 1
 				#if (currentSymbolTable.insert(x['ID'],{'TYPE':p[1]['TYPE'],'STATIC':0,'ARRAY': x['ARRAY'],'INDEX1':x['INDEX1'],'INDEX2':x['INDEX2'],'SCOPETYPE':'GLOBAL','POINTER':x['POINTER'],'astChildList':x['astChildList']}) == False):
@@ -632,7 +632,7 @@ def p_declaration(p):
 					x['STATIC'] = 0
 					#print "current"
 					#print currentSymbolTable.symbols
-			newAstNode = AstNode(p[1]['TYPE'],[])
+			newAstNode = p[1]['astChildList'][0]
 			for n in p[2]:
 				newAstNode.astChildList += n['astChildList']
 			p[0] = {'astChildList':[newAstNode]}
@@ -669,7 +669,7 @@ def p_declaration(p):
 				print_symbol_table(parameter_symbol_table,1)
 				parameter_symbol_table = SymbolTable(-1)
 
-			newAstNode = AstNode(p[1]['TYPE'],[])
+			newAstNode = p[1]['astChildList'][0]
 			newFunAstNode = AstNode(p[2][0][0],[])
 			newAstNode.astChildList += [newFunAstNode]
 			if(len(p[2][0]) > 2 ):
@@ -726,6 +726,7 @@ def p_init_declarator(p):
 			if(str(p[3]['OUTPUT']) != str(p[1]['POINTER'])):
 				print "Warning at line number", p.lineno(1), "initialization from incompatible pointer type " 
 			p[0] = {'INDEX2': p[1]['INDEX2'], 'NODE_TYPE': 'var_decl_id', 'INDEX1': p[1]['INDEX1'], 'ARRAY': p[1]['ARRAY'], 'ID': p[1]['ID'], 'TYPE':p[3]['OUTPUT'],'POINTER':int(p[1]['POINTER'])}
+			varNode += [p[1]['astChildList'][0]]
 		newAstNode = AstNode(p[2],p[1]['astChildList']+p[3]['astChildList'])
 		p[0]['astChildList'] = [newAstNode]
 	else:
@@ -758,7 +759,8 @@ def p_type_specifier(p):
 						| IMAGINARY
 						| TYPEID '''
 	#print "type_specifier"
-	p[0] = {'NODE_TYPE': 'type_specifier', 'TYPE': p[1]}
+	newAstNode = AstNode(p[1],[])
+	p[0] = {'NODE_TYPE': 'type_specifier', 'TYPE': p[1], 'astChildList':[newAstNode]}
 	#p[0]=("type_specifier",)+tuple(p[-len(p)+1:])
 
 def p_type_specifier2(p):
@@ -1490,7 +1492,7 @@ def p_function_definition(p):
 			FUNCTION_LIST_DEFINITION = FUNCTION_LIST_DEFINITION + CURRENT_DECLARATION
 			print_symbol_table(parameter_symbol_table,1)
 			parameter_symbol_table = SymbolTable(-1)
-		newAstNode = AstNode(p[1]['TYPE'],[])
+		newAstNode = p[1]['astChildList'][0]
 		newFunAstNode = AstNode(p[2][0],[])
 		if(type(p[3]) is list):
 			for n in p[3]:

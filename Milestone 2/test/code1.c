@@ -1,8 +1,7 @@
-int d;
-int fin(int e,int f){
-	int c;
+int f(int a) {
+
 }
-int main(int m,int n) {
-	int a = 2;
-	int b = a;
+
+int main() {
+	int a = f(f(2));
 }
