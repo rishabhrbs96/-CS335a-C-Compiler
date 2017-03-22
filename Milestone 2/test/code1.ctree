@@ -1,44 +1,51 @@
 graph {
 	0 [label=AST_ROOT_NODE]
-	1 [label=struct]
+	1 [label=int]
 		0 -- 1
-	2 [label="STRUCT-NAME"]
+	2 [label=main]
 		1 -- 2
-	3 [label=s2]
+	3 [label=struct]
 		2 -- 3
-	4 [label=c]
+	4 [label="STRUCT-NAME"]
 		3 -- 4
-	5 [label="STRUCT-BODY"]
-		1 -- 5
-	6 [label=float]
-		5 -- 6
-	7 [label=c]
+	5 [label="UNNAMED STRUCT0"]
+		4 -- 5
+	6 [label="STRUCT-BODY"]
+		3 -- 6
+	7 [label=int]
 		6 -- 7
-	8 [label=int]
-		0 -- 8
-	9 [label=main]
-		8 -- 9
-	10 [label=struct]
-		9 -- 10
-	11 [label="STRUCT-NAME"]
+	8 [label=a]
+		7 -- 8
+	9 [label=b]
+		7 -- 9
+	10 [label=char]
+		6 -- 10
+	11 [label=<POINTER,1>]
 		10 -- 11
-	12 [label=s]
+	12 [label=d]
 		11 -- 12
-	13 [label="STRUCT-BODY"]
-		10 -- 13
-	14 [label=int]
-		13 -- 14
-	15 [label=a]
+	13 [label=e]
+		3 -- 13
+	14 [label=struct]
+		2 -- 14
+	15 [label="STRUCT-NAME"]
 		14 -- 15
-	16 [label=b]
-		14 -- 16
-		13 -- 3
-	17 [label=char]
-		13 -- 17
-	18 [label=<POINTER,1>]
+	16 [label="UNNAMED STRUCT1"]
+		15 -- 16
+	17 [label="STRUCT-BODY"]
+		14 -- 17
+	18 [label=int]
 		17 -- 18
-	19 [label=d]
+	19 [label=a]
 		18 -- 19
-	20 [label=e]
-		10 -- 20
+	20 [label=b]
+		18 -- 20
+	21 [label=char]
+		17 -- 21
+	22 [label=<POINTER,1>]
+		21 -- 22
+	23 [label=d]
+		22 -- 23
+	24 [label=f]
+		14 -- 24
 }

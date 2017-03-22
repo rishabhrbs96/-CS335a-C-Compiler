@@ -16,6 +16,8 @@ from createAST import *
 
 global type_of_declaration
 type_of_declaration = 0		#0 default 1 for var declaraion -1 for func declaration
+global nullStruct
+nullStruct = 0
 global varNode
 varNode = []
 
@@ -773,7 +775,27 @@ def p_struct_or_union_specifier(p):
 	#print "struct_or_union_specifier"
 	#p[0]=("struct_or_union_specifier",)+tuple(p[-len(p)+1:])
 	if(len(p) == 5):
-		pass
+		global nullStruct
+		newAstNode = AstNode("struct",[AstNode("STRUCT-NAME",[AstNode("UNNAMED STRUCT"+str(nullStruct),[])])])
+		newAstNode2 = AstNode("STRUCT-BODY",[])
+		if(type(p[3]) is list):
+			for n in p[3]:
+				newAstNode2.astChildList += n['astChildList']
+		else:
+			newAstNode2.astChildList += p[3]['astChildList']
+		newAstNode.astChildList += [newAstNode2]
+		p[0] = {'NODE_TYPE': 'struct_decl','TYPE':p[1],'ARRAY':0, 'ID' : "UNNAMED STRUCT"+str(nullStruct), 'INDEX1': '','INDEX2':'','POINTER':0,'astChildList':[newAstNode]}
+		if (currentSymbolTable.insert("UNNAMED STRUCT"+str(nullStruct),{'TYPE':p[1],'STATIC':0,'ARRAY': 0,'INDEX1':'','INDEX2':'','POINTER':0,'astChildList':[]}) == False):
+			print 'UNNAMED STRUCT',str(nullStruct),': Variable already declared '
+			sys.exit()
+		else:
+			check = currentSymbolTable.lookupCurrentTable("UNNAMED STRUCT"+str(nullStruct))
+			#print check
+			p[0]['offset'] = check['offset']
+			p[0]['STATIC'] = 0
+			#print "current"
+			#print currentSymbolTable.symbols
+		nullStruct = nullStruct + 1
 	elif(len(p) == 6):
 		newAstNode = AstNode("struct",[AstNode("STRUCT-NAME",p[2]['astChildList'])])
 		newAstNode2 = AstNode("STRUCT-BODY",[])

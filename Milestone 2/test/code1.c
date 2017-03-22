@@ -1,12 +1,12 @@
-struct s2{
-	float c;
-};
 
 int main() {
-	struct s{
+	struct {
 		int a, b;
-		struct s2 c;
 		char *d;
 	} e;
+	struct {
+		int a, b;
+		char *d;
+	} f;
 
 }

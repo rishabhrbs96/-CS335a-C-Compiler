@@ -1,23 +1,26 @@
 
 AST_ROOT_NODE
-	struct
-		STRUCT-NAME
-			s2
-				c
-		STRUCT-BODY
-			float
-				c
 	int
 		main
 			struct
 				STRUCT-NAME
-					s
+					UNNAMED STRUCT0
 				STRUCT-BODY
 					int
 						a
 						b
-					s2
 					char
 						<POINTER,1>
 							d
 				e
+			struct
+				STRUCT-NAME
+					UNNAMED STRUCT1
+				STRUCT-BODY
+					int
+						a
+						b
+					char
+						<POINTER,1>
+							d
+				f

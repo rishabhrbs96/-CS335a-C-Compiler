@@ -2,5 +2,4 @@
 Name,Type,Pointer,Array,Index1,Index2
 a,int,0,0,0,0
 b,int,0,0,0,0
-c,struct,0,0,0,0
 d,char,1,0,0,0
