@@ -772,7 +772,9 @@ def p_struct_or_union_specifier(p):
 								| struct_or_union struct_name '''
 	#print "struct_or_union_specifier"
 	#p[0]=("struct_or_union_specifier",)+tuple(p[-len(p)+1:])
-	if(len(p) == 6):
+	if(len(p) == 5):
+		pass
+	elif(len(p) == 6):
 		newAstNode = AstNode("struct",[AstNode("STRUCT-NAME",p[2]['astChildList'])])
 		newAstNode2 = AstNode("STRUCT-BODY",[])
 		if(type(p[4]) is list):
@@ -792,9 +794,12 @@ def p_struct_or_union_specifier(p):
 			p[0]['STATIC'] = 0
 			#print "current"
 			#print currentSymbolTable.symbols
-
-
-		#print p[0]['TYPE']
+	else:
+		check = currentSymbolTable.lookup(p[2]['ID'])
+		if(check == False):
+			print "Error at line number", p.lineno(1),': Struct ',p[2]['ID'],'not declared '
+			sys.exit()
+		p[0] = {'NODE_TYPE': 'struct_decl','TYPE':p[1],'ARRAY':0, 'ID' : p[2]['ID'], 'INDEX1': '','INDEX2':'','POINTER':0,'astChildList':check['attributes']['astChildList']}
 
 def p_struct_name(p):
 	'''struct_name : IDENTIFIER '''

@@ -1,10 +1,12 @@
+struct s2{
+	float c;
+};
 
 int main() {
 	struct s{
-		int d;
-		struct s2{
-			int c;
-		};
-	} a;
+		int a, b;
+		struct s2 c;
+		char *d;
+	} e;
 
 }

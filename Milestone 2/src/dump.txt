@@ -1,5 +1,12 @@
 
 AST_ROOT_NODE
+	struct
+		STRUCT-NAME
+			s2
+				c
+		STRUCT-BODY
+			float
+				c
 	int
 		main
 			struct
@@ -7,11 +14,10 @@ AST_ROOT_NODE
 					s
 				STRUCT-BODY
 					int
-						d
-					struct
-						STRUCT-NAME
-							s2
-						STRUCT-BODY
-							int
-								c
-				a
+						a
+						b
+					s2
+					char
+						<POINTER,1>
+							d
+				e

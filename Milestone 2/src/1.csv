@@ -1,2 +1,3 @@
           Table Number = 1
 Name,Type,Pointer,Array,Index1,Index2
+s2,struct,0,0,,
