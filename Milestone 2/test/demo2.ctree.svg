@@ -44,7 +44,7 @@
 <!-- 5 -->
 <g id="node6" class="node"><title>5</title>
 <ellipse fill="none" stroke="black" cx="120" cy="-90" rx="27" ry="18"/>
-<text text-anchor="middle" x="120" y="-86.3" font-family="Times,serif" font-size="14.00">int</text>
+<text text-anchor="middle" x="120" y="-86.3" font-family="Times,serif" font-size="14.00">++</text>
 </g>
 <!-- 2&#45;&#45;5 -->
 <g id="edge5" class="edge"><title>2&#45;&#45;5</title>
@@ -53,7 +53,7 @@
 <!-- 4 -->
 <g id="node5" class="node"><title>4</title>
 <ellipse fill="none" stroke="black" cx="48" cy="-18" rx="27" ry="18"/>
-<text text-anchor="middle" x="48" y="-14.3" font-family="Times,serif" font-size="14.00">b</text>
+<text text-anchor="middle" x="48" y="-14.3" font-family="Times,serif" font-size="14.00">a</text>
 </g>
 <!-- 3&#45;&#45;4 -->
 <g id="edge4" class="edge"><title>3&#45;&#45;4</title>
@@ -62,7 +62,7 @@
 <!-- 6 -->
 <g id="node7" class="node"><title>6</title>
 <ellipse fill="none" stroke="black" cx="120" cy="-18" rx="27" ry="18"/>
-<text text-anchor="middle" x="120" y="-14.3" font-family="Times,serif" font-size="14.00">c</text>
+<text text-anchor="middle" x="120" y="-14.3" font-family="Times,serif" font-size="14.00">1</text>
 </g>
 <!-- 5&#45;&#45;6 -->
 <g id="edge6" class="edge"><title>5&#45;&#45;6</title>

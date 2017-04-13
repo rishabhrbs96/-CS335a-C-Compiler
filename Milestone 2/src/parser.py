@@ -2,14 +2,10 @@ import sys
 import os
 import lexer
 import ply.yacc as yacc
-import createParseTree
 import SymbolTable
 import ast
 import createAST
 
-from createParseTree import create_tree
-from createParseTree import calc_tree
-from createParseTree import tokenVal
 from SymbolTable import *
 from ast import *
 from createAST import *
@@ -210,7 +206,19 @@ def p_postfix_expression(p):
 	if(len(p) == 2):
 		p[0] = p[1]
 	else:
-		pass
+		p[0] = p[1]
+		p[0]['POINTER'] = 0
+		p[0]['ARRAY'] = 0
+		#print p[3]
+		if(p[3].has_key('TYPE')):
+			if((str(p[3]['TYPE']) != "int" and str(p[3]['TYPE']) != "char")):
+				print "Error at line number", p.lineno(1) ,": array index should be integer "
+				sys.exit()
+		else:
+			if((str(p[3]['OUTPUT']) != "int" and str(p[3]['OUTPUT']) != "char")):
+				print "Error at line number", p.lineno(1) ,": array index should be integer "
+				sys.exit()
+		
 # >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>   check it >>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 def p_postfix_expression2(p):
@@ -250,6 +258,7 @@ def p_postfix_expression3(p):
 	#p[0]=("postfix_expresssion",)+tuple(p[-len(p)+1:])
 	global currentSymbolTable
 	global tempTable
+	x = ''
 
 	if(tempTable == -1):
 		tempTable = currentSymbolTable
@@ -265,8 +274,9 @@ def p_postfix_expression3(p):
 					p[0] = check['attributes']
 					tempTable = x
 				break
-		if(str(x.structName) == str(p[1]['NAME'])):
-			break
+		if(x != ''):
+			if(str(x.structName) == str(p[1]['NAME'])):
+				break
 		tempTable = tempTable.father
 	if(tempTable==-1):
 		print "Error at line number", p.lineno(1) ,": struct not declared"
@@ -286,6 +296,7 @@ def p_postfix_expression4(p):
 		if(p[1]['ARRAY'] != 0):
 			print "Error at line number", p.lineno(1) ,": lvalue required as increment operand"
 		p[0] = p[1]
+	#check here
 		newAstNode = AstNode(p[2],p[1]['astChildList'])
 		p[0]['astChildList'] = [newAstNode]
 	else:
@@ -1084,9 +1095,9 @@ def p_parameter_declaration(p):
 	if(len(p)==2):
 		p[0]=[p[1]]	
 
-def p_identifier_list(p):
-	'''identifier_list : IDENTIFIER
-						| identifier_list COMMA IDENTIFIER '''
+#def p_identifier_list(p):
+#	'''identifier_list : IDENTIFIER
+#						| identifier_list COMMA IDENTIFIER '''
 	#print "identifier_list"
 	#p[0]=("identifier_list",)+tuple(p[-len(p)+1:])
 	
@@ -1532,6 +1543,8 @@ def p_function_definition(p):
 		newFunAstNode = AstNode(p[2][0],[])
 		if(type(p[3]) is list):
 			for n in p[3]:
+				while (type(n) is list):
+					n = n[0]
 				newFunAstNode.astChildList += n['astChildList']
 		else:
 			newFunAstNode.astChildList += p[3]['astChildList']

@@ -58,7 +58,7 @@ def create_tree(result,name):
 	#print(g1.source)
 	#print(result)
 	#print result.astChildList
-	print dump_str
+	#print dump_str
 	f = open('dump.txt', 'wb')
 	f.write("%s" % dump_str)
 	f.close()

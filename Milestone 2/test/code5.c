@@ -24,9 +24,7 @@ void insertionSort(int arr[], int n)
 void printArray(int arr[], int n)
 {
    int i;
-   for (i=0; i < n; i++)
-       printf("%d ", arr[i]);
-   printf("\n");
+   for (i=0; i < n; i++);
 }
  
  
@@ -34,11 +32,9 @@ void printArray(int arr[], int n)
 /* Driver program to test insertion sort */
 int main()
 {
-    int arr[] = {12, 11, 13, 5, 6};
+    int arr[10];
     int n = sizeof(arr)/sizeof(arr[0]);
- 
     insertionSort(arr, n);
     printArray(arr, n);
  
-    return 0;
 }

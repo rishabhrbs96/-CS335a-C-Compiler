@@ -6,10 +6,10 @@ graph {
 		1 -- 2
 	3 [label=int]
 		2 -- 3
-	4 [label=b]
+	4 [label=a]
 		3 -- 4
-	5 [label=int]
+	5 [label="++"]
 		2 -- 5
-	6 [label=c]
+	6 [label=1]
 		5 -- 6
 }
