@@ -1,13 +1,5 @@
-int main(){
-	if(a < 2) {
-		if((a + b) > c + d) {
-			int looool;
-		}
-		else {
-			int bababab;
-		}
-	}
-	else {
-		int rishabh;
+int main(int a){
+	for(i=0;i<2;++i) {
+		int a;
 	}
 }

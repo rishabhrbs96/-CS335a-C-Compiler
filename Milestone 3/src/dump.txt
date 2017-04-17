@@ -3,7 +3,7 @@ AST_ROOT_NODE
 	int
 		main
 			int
-				arr
-			int
-				n
-			0
+				a
+				b
+		int
+			a

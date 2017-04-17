@@ -6,12 +6,12 @@ graph {
 		1 -- 2
 	3 [label=int]
 		2 -- 3
-	4 [label=arr]
+	4 [label=a]
 		3 -- 4
-	5 [label=int]
-		2 -- 5
-	6 [label=n]
-		5 -- 6
-	7 [label=0]
-		2 -- 7
+	5 [label=b]
+		3 -- 5
+	6 [label=int]
+		1 -- 6
+	7 [label=a]
+		6 -- 7
 }

@@ -36,7 +36,7 @@ def p_translation_unit(p):
 	if(len(p) == 2):
 		p[0] = p[1]
 	else:
-		p[0] = {'code':p[1]['code'] + "\n" + p[2]['code']}
+		p[0] = {'code':p[1]['code'] + p[2]['code']}
 
 def p_primary_expression(p):
 	'''primary_expression : constant
@@ -55,7 +55,7 @@ def p_primary_expression2(p):
 	#print "primary_expression"
 	#p[0]=("primary_expression",)+tuple(p[-len(p)+1:])
 	if(len(p) == 2):
-		p[0] = {'value':p[1],'code':''}
+		p[0] = {'value':p[1],'code':[]}
 
 def p_constant(p):
 	'''constant : I_CONSTANT
@@ -63,7 +63,7 @@ def p_constant(p):
 				| CCONST '''
 	#print "constant"
 	#p[0]=("primary_expression",)+tuple(p[-len(p)+1:])
-	p[0] = {'value':p[1],'code':''}
+	p[0] = {'value':p[1],'code':[]}
 
 def p_enumeration_constant(p):
 	'''enumeration_constant : IDENTIFIER'''
@@ -75,7 +75,7 @@ def p_string(p):
 				| FUNC_NAME '''
 	#print "string"
 	#p[0]=("string",)+tuple(p[-len(p)+1:])
-	p[0] = {'value':p[1],'code':''}
+	p[0] = {'value':p[1],'code':[]}
 
 def p_generic_selection(p):
 	'''generic_selection : GENERIC LPAREN assignment_expression COMMA generic_assoc_list RPAREN '''
@@ -115,13 +115,10 @@ def p_postfix_expression2(p):
 							| postfix_expression DEC_OP '''
 	#print "postfix_expresssion"
 	#p[0]=("postfix_expresssion",)+tuple(p[-len(p)+1:])
-	newVar = createNewTempVar()
-	p[0] = {'code':'','value':p[1]['value']}
-	if(p[1]['code'] != ''):
-		p[0]['code'] += p[1]['code'] + '\n'
-	p[0]['code'] += newVar + ' = ' + p[1]['value'] + ' + 1\n'
-	p[0]['code'] += p[1]['value'] + ' = ' + newVar
-	
+	p[0] = {'code':[],'value':p[1]['value']}
+	if(p[1]['code'] != []):
+		p[0]['code'] += p[1]['code']
+	p[0]['code'] += [[p[2],p[1]['value']]]
 	
 def p_argument_expression_list(p):
 	'''argument_expression_list : assignment_expression
@@ -139,8 +136,10 @@ def p_unary_expression(p):
 		p[0] = p[1]
 	else:
 		newVar = createNewTempVar()
-		p[0] = {'code':'','value':newVar}
-		p[0]['code'] += newVar + ' = ' + p[1] + " " + p[2]['value']
+		p[0] = {'code':[],'value':p[2]['value']}
+		if(p[2]['code'] != []):
+			p[0]['code'] += p[2]['code']
+		p[0]['code'] += [[p[1],p[2]['value']]]
 
 def p_unary_expression2(p):
 	'''unary_expression : unary_operator cast_expression
@@ -151,8 +150,8 @@ def p_unary_expression2(p):
 	#p[0]=("unary_expression",)+tuple(p[-len(p)+1:])
 	if(len(p) == 3):
 		newVar = createNewTempVar()
-		p[0] = {'code':'','value':newVar}
-		if(p[2]['code'] != ''):
+		p[0] = {'code':[],'value':newVar}
+		if(p[2]['code'] != []):
 			p[0]['code'] += p[2]['code'] + "\n"
 		p[0]['code'] += newVar + ' = ' + p[1]['value'] + " " + p[2]['value']
 	else:
@@ -167,7 +166,7 @@ def p_unary_operator(p):
 						| LNOT '''     #changetoken
 	#print "unary_operator"
 	#p[0]=("unary_operator",)+tuple(p[-len(p)+1:])
-	p[0] = {'code':p[1],'value':p[1]}
+	p[0] = {'code':[],'value':p[1]}
 
 def p_cast_expression(p):
 	'''cast_expression : unary_expression
@@ -190,12 +189,12 @@ def p_multiplicative_expression(p):
 		p[0] = p[1]
 	else:
 		newVar = createNewTempVar()
-		p[0] = {'code':'','value':newVar}
-		if(p[1]['code'] != ''):
-			p[0]['code'] += p[1]['code'] + "\n"
-		if(p[3]['code'] != ''):
-			p[0]['code'] += p[3]['code'] + "\n"
-		p[0]['code'] += newVar + ' = ' + p[1]['value'] + " " + p[2] + " " + p[3]['value']
+		p[0] = {'code':[],'value':newVar}
+		if(p[1]['code'] != []):
+			p[0]['code'] += p[1]['code']
+		if(p[3]['code'] != []):
+			p[0]['code'] += p[3]['code']
+		p[0]['code'] += [[p[2],newVar,p[1]['value'],p[3]['value']]]
 
 	
 def p_additive_expression(p):
@@ -208,12 +207,12 @@ def p_additive_expression(p):
 		p[0] = p[1]
 	else:
 		newVar = createNewTempVar()
-		p[0] = {'code':'','value':newVar}
-		if(p[1]['code'] != ''):
-			p[0]['code'] += p[1]['code'] + "\n"
-		if(p[3]['code'] != ''):
-			p[0]['code'] += p[3]['code'] + "\n"
-		p[0]['code'] += newVar + ' = ' + p[1]['value'] + " " + p[2] + " " + p[3]['value']
+		p[0] = {'code':[],'value':newVar}
+		if(p[1]['code'] != []):
+			p[0]['code'] += p[1]['code']
+		if(p[3]['code'] != []):
+			p[0]['code'] += p[3]['code']
+		p[0]['code'] += [[p[2],newVar,p[1]['value'],p[3]['value']]]
 	
 def p_shift_expression(p):
 	'''shift_expression : additive_expression
@@ -224,7 +223,13 @@ def p_shift_expression(p):
 	if(len(p) == 2):
 		p[0] = p[1]
 	else:
-		pass
+		newVar = createNewTempVar()
+		p[0] = {'code':[],'value':newVar}
+		if(p[1]['code'] != []):
+			p[0]['code'] += p[1]['code']
+		if(p[3]['code'] != []):
+			p[0]['code'] += p[3]['code']
+		p[0]['code'] += [[p[2],newVar,p[1]['value'],p[3]['value']]]
 
 def p_relational_expression(p):
 	'''relational_expression : shift_expression
@@ -238,19 +243,19 @@ def p_relational_expression(p):
 		p[0] = p[1]
 	else:
 		newVar = createNewTempVar()
-		p[0] = {'code':'','value':newVar}
-		if(p[1]['code'] != ''):
-			p[0]['code'] += p[1]['code'] + "\n"
-		if(p[3]['code'] != ''):
-			p[0]['code'] += p[3]['code'] + "\n"
+		p[0] = {'code':[],'value':newVar}
+		if(p[1]['code'] != []):
+			p[0]['code'] += p[1]['code']
+		if(p[3]['code'] != []):
+			p[0]['code'] += p[3]['code']
 		trueLabel = createNewLabel()
 		falseLabel = createNewLabel()
 		
-		p[0]['code'] += "IF " + p[1]['value'] + " " + p[2] + " " + p[3]['value'] + " THEN GOTO " + trueLabel + '\n'
-		p[0]['code'] += newVar + ' = 0' + '\n' +  "GOTO " + falseLabel + '\n'
-		p[0]['code'] += 'LABEL ' + trueLabel + '\n'
-		p[0]['code'] += newVar + ' = 1' + '\n'
-		p[0]['code'] += 'LABEL ' + falseLabel
+		p[0]['code'] += [["IF",p[1]['value'],p[2],p[3]['value'],"GOTO",trueLabel]]
+		p[0]['code'] += [['=',newVar,'0']] +  [["GOTO",falseLabel]]
+		p[0]['code'] += [['LABEL',trueLabel]]
+		p[0]['code'] += [['=',newVar,'1']]
+		p[0]['code'] += [['LABEL',falseLabel]]
 	
 def p_equality_expression(p):
 	'''equality_expression : relational_expression
@@ -261,7 +266,13 @@ def p_equality_expression(p):
 	if(len(p) == 2):
 		p[0] = p[1]
 	else:
-		pass
+		newVar = createNewTempVar()
+		p[0] = {'code':[],'value':newVar}
+		if(p[1]['code'] != []):
+			p[0]['code'] += p[1]['code']
+		if(p[3]['code'] != []):
+			p[0]['code'] += p[3]['code']
+		p[0]['code'] += [[p[2],newVar,p[1]['value'],p[3]['value']]]
 
 def p_and_expression(p):
 	'''and_expression : equality_expression
@@ -271,7 +282,13 @@ def p_and_expression(p):
 	if(len(p) == 2):
 		p[0] = p[1]
 	else:
-		pass
+		newVar = createNewTempVar()
+		p[0] = {'code':[],'value':newVar}
+		if(p[1]['code'] != []):
+			p[0]['code'] += p[1]['code']
+		if(p[3]['code'] != []):
+			p[0]['code'] += p[3]['code']
+		p[0]['code'] += [[p[2],newVar,p[1]['value'],p[3]['value']]]
 
 def p_exclusive_or_expression(p):
 	'''exclusive_or_expression : and_expression
@@ -281,7 +298,13 @@ def p_exclusive_or_expression(p):
 	if(len(p) == 2):
 		p[0] = p[1]
 	else:
-		pass
+		newVar = createNewTempVar()
+		p[0] = {'code':[],'value':newVar}
+		if(p[1]['code'] != []):
+			p[0]['code'] += p[1]['code']
+		if(p[3]['code'] != []):
+			p[0]['code'] += p[3]['code']
+		p[0]['code'] += [[p[2],newVar,p[1]['value'],p[3]['value']]]
 
 def p_inclusive_or_expression(p):
 	'''inclusive_or_expression : exclusive_or_expression
@@ -291,7 +314,13 @@ def p_inclusive_or_expression(p):
 	if(len(p) == 2):
 		p[0] = p[1]
 	else:
-		pass
+		newVar = createNewTempVar()
+		p[0] = {'code':[],'value':newVar}
+		if(p[1]['code'] != []):
+			p[0]['code'] += p[1]['code']
+		if(p[3]['code'] != []):
+			p[0]['code'] += p[3]['code']
+		p[0]['code'] += [[p[2],newVar,p[1]['value'],p[3]['value']]]
 
 def p_logical_and_expression(p):
 	'''logical_and_expression : inclusive_or_expression
@@ -301,7 +330,13 @@ def p_logical_and_expression(p):
 	if(len(p) == 2):
 		p[0] = p[1]
 	else:
-		pass
+		newVar = createNewTempVar()
+		p[0] = {'code':[],'value':newVar}
+		if(p[1]['code'] != []):
+			p[0]['code'] += p[1]['code']
+		if(p[3]['code'] != []):
+			p[0]['code'] += p[3]['code']
+		p[0]['code'] += [[p[2],newVar,p[1]['value'],p[3]['value']]]
 
 def p_logical_or_expression(p):
 	'''logical_or_expression : logical_and_expression
@@ -311,7 +346,13 @@ def p_logical_or_expression(p):
 	if(len(p) == 2):
 		p[0] = p[1]
 	else:
-		pass
+		newVar = createNewTempVar()
+		p[0] = {'code':[],'value':newVar}
+		if(p[1]['code'] != []):
+			p[0]['code'] += p[1]['code']
+		if(p[3]['code'] != []):
+			p[0]['code'] += p[3]['code']
+		p[0]['code'] += [[p[2],newVar,p[1]['value'],p[3]['value']]]
 
 def p_conditional_expression(p):
 	'''conditional_expression : logical_or_expression
@@ -331,10 +372,10 @@ def p_assignment_expression(p):
 	if(len(p) == 2):
 		p[0] = p[1]
 	else:
-		p[0] = {'code':''}
-		if(p[3]['code'] != ''):
-			p[0]['code'] += p[3]['code'] + '\n'
-		p[0]['code'] += p[1]['value'] + " " +  p[2]['value'] + " " + p[3]['value']
+		p[0] = {'code':[]}
+		if(p[3]['code'] != []):
+			p[0]['code'] += p[3]['code']
+		p[0]['code'] += [[p[2]['value'],p[1]['value'],p[3]['value']]]
 
 def p_assignment_operator(p):
 	'''assignment_operator : EQUALS 
@@ -351,7 +392,7 @@ def p_assignment_operator(p):
 							 '''                         #changetoken
 	#print "assignment_operator"
 	#p[0]=("assignment_operator",)+tuple(p[-len(p)+1:])
-	p[0] = {'value':p[1],'code':p[1]}
+	p[0] = {'value':p[1],'code':[]}
 
 def p_expression(p):
 	'''expression : assignment_expression
@@ -374,10 +415,17 @@ def p_declaration(p):
 					| static_assert_declaration '''
 	#print "declaration"
 	#p[0]=("declaration",)+tuple(p[-len(p)+1:])
-	p[0] = {'code':''}
-	p[0]['code'] = "DECLARATION " + p[1]['code']
 	if(len(p) == 4):
-		p[0]['code'] += " " + p[2]['code']
+		p[0] = {'code':[]}
+		beg = ['VARDECLARATION'] + [p[1]['value']]
+		j = 0
+		for x in p[2]['value']:
+			p[0]['code'] += [beg + [x]]
+			p[0]['code'] += p[2]['code'][j]
+			j = j + 1
+	else:
+		p[0] = {'code':[['VARDECLARATION'] + [p[1]['value']]]}
+		
 		
 
 def p_declaration_specifiers(p):
@@ -402,10 +450,9 @@ def p_init_declarator_list(p):
 	#print "init_declarator_list"
 	#p[0]=("init_declarator_list",)+tuple(p[-len(p)+1:])
 	if(len(p) == 2):
-		p[0] = p[1]
+		p[0] = {'code':[p[1]['code']],'value':[p[1]['value']]}
 	else:
-		p[0] = {'code':''}
-		p[0]['code'] = p[1]['code'] + " , " + p[3]['code']
+		p[0] = {'code':p[1]['code'] + [p[3]['code']],'value':p[1]['value'] + [p[3]['value']]}
 
 def p_init_declarator(p):
 	'''init_declarator : declarator EQUALS initializer
@@ -415,10 +462,11 @@ def p_init_declarator(p):
 	if(len(p) == 2):
 		p[0] = p[1]
 	else:
-		p[0] = {'code':''}
-		if(p[3]['code'] != ''):
-			p[0]['code'] += p[3]['code'] + '\n'
-		p[0]['code'] = p[1]['value'] + " " +  p[2] + " " + p[3]['value']
+		p[0] = {'code':[],'value':p[1]['value']}
+		if(p[3]['code'] != []):
+			p[0]['code'] += p[3]['code']
+		p[0]['code'] += [[p[2],p[1]['value'],p[3]['value']]]
+		
 
 
 def p_storage_class_specifier(p):
@@ -449,7 +497,7 @@ def p_type_specifier(p):
 						| TYPEID '''
 	#print "type_specifier"
 	#p[0]=("type_specifier",)+tuple(p[-len(p)+1:])
-	p[0] = {'code':p[1],'value':p[1]}
+	p[0] = {'code':[],'value':p[1]}
 
 def p_struct_or_union_specifier(p):
 	'''struct_or_union_specifier : struct_or_union LBRACE struct_declaration_list RBRACE
@@ -565,12 +613,12 @@ def p_direct_declarator(p):
 	#print "direct_declarator"
 	#p[0]=("direct_declarator",)+tuple(p[-len(p)+1:])
 	if(len(p) == 2):
-		p[0] = {'value':p[1],'code':p[1]}
+		p[0] = {'value':p[1],'code':[]}
 	elif(len(p) == 4):
 		p[0] = p[1]
 	elif(len(p) == 5):
-		p[0] = {'code':''}
-		p[0]['code'] += p[1]['code'] + " PARAMS " + p[3]['code']
+		p[0] = {'code':[]}
+		p[0]['code'] += p[1]['code'] + ['PARAMS'] + p[3]['code']
 	else:
 		pass
 def p_pointer(p):
@@ -605,7 +653,7 @@ def p_parameter_list(p):
 	if(len(p) == 2):
 		p[0] = p[1]
 	else:
-		p[0] = {'code':p[1]['code'] + ' , ' + p[3]['code']}
+		p[0] = {'code':p[1]['code'] + p[3]['code']}
 
 def p_parameter_declaration(p):
 	'''parameter_declaration : declaration_specifiers declarator
@@ -616,7 +664,7 @@ def p_parameter_declaration(p):
 	if(len(p) == 2):
 		p[0] = p[1]
 	else:
-		p[0] = {'code':p[1]['code'] + " " +  p[2]['code']}
+		p[0] = {'code':[p[1]['value']] + p[2]['code']}
 
 def p_identifier_list(p):
 	'''identifier_list : IDENTIFIER
@@ -730,7 +778,7 @@ def p_compound_statement(p):
 	#print "compound_statement"
 	#p[0]=("compound_statement",)+tuple(p[-len(p)+1:])
 	if(len(p) == 3):
-		p[0] = {'code':''}
+		p[0] = {'code':[[]]}
 	else:
 		p[0] = p[2]
 	
@@ -740,10 +788,9 @@ def p_block_item_list(p):
 	#print "block_item_list"
 	#p[0]=("block_item_list",)+tuple(p[-len(p)+1:])
 	if(len(p) == 2):
-		p[0] = p[1]
+		p[0] = {'code':p[1]['code']}
 	else:
-		p[0] = {'code':''}
-		p[0]['code'] = p[1]['code'] + "\n" + p[2]['code']
+		p[0] = {'code':p[1]['code'] + p[2]['code']}
 
 def p_block_item(p):
 	'''block_item : declaration
@@ -766,29 +813,29 @@ def p_selection_statement(p):
 							| IF LPAREN expression RPAREN statement '''
 	#print "selection_statement"
 	#p[0]=("selection_statement",)+tuple(p[-len(p)+1:])
-	p[0] = {'code':''}
+	p[0] = {'code':[]}
 	elseLabel = createNewLabel()
 	afterLabel = createNewLabel()
 	if(len(p) == 6):
-		if(p[3]['code'] != ''):
-			p[0]['code'] += p[3]['code'] + "\n"
+		if(p[3]['code'] != []):
+			p[0]['code'] += p[3]['code']
 		if(p[3]['value'] != ''):
-				p[0]['code'] += "IF " + p[3]['value'] + " == 0 THEN GOTO " + elseLabel + '\n'
-				if(p[5]['code'] != ''):
-					p[0]['code'] += p[5]['code'] + "\n"
-				p[0]['code'] += 'LABEL ' + elseLabel
+				p[0]['code'] += [["IF",p[3]['value'],"==","0","GOTO",elseLabel]]
+				if(p[5]['code'] != []):
+					p[0]['code'] += p[5]['code']
+				p[0]['code'] += [['LABEL',elseLabel]]
 	else:
-		if(p[3]['code'] != ''):
-			p[0]['code'] += p[3]['code'] + "\n"
+		if(p[3]['code'] != []):
+			p[0]['code'] += p[3]['code']
 		if(p[3]['value'] != ''):
-				p[0]['code'] += "IF " + p[3]['value'] + " == 0 THEN GOTO " + elseLabel + '\n'
-				if(p[5]['code'] != ''):
-					p[0]['code'] += p[5]['code'] + "\n"
-				p[0]['code'] += "GOTO " + afterLabel + '\n'
-				p[0]['code'] += 'LABEL ' + elseLabel + '\n'
-				if(p[7]['code'] != ''):
-					p[0]['code'] += p[7]['code'] + "\n"
-				p[0]['code'] += 'LABEL ' + afterLabel
+				p[0]['code'] += [["IF",p[3]['value'],"==","0","GOTO",elseLabel]]
+				if(p[5]['code'] != []):
+					p[0]['code'] += p[5]['code']
+				p[0]['code'] += [["GOTO",afterLabel]]
+				p[0]['code'] += [['LABEL',elseLabel]]
+				if(p[7]['code'] != []):
+					p[0]['code'] += p[7]['code']
+				p[0]['code'] += [['LABEL',afterLabel]]
 
 
 def p_selection_statement2(p):
@@ -800,35 +847,35 @@ def p_iteration_statement(p):
 	'''iteration_statement : WHILE LPAREN expression RPAREN statement '''
 	#print "iteration_statement"
 	#p[0]=("iteration_statement",)+tuple(p[-len(p)+1:])
-	p[0] = {'code':''}
+	p[0] = {'code':[]}
 	beginLabel = createNewLabel()
 	endLabel = createNewLabel()
-	p[0]['code'] += 'LABEL ' + beginLabel + '\n'
-	if(p[3]['code'] != ''):
-		p[0]['code'] += p[3]['code'] + "\n"
+	p[0]['code'] += [['LABEL',beginLabel]]
+	if(p[3]['code'] != []):
+		p[0]['code'] += p[3]['code']
 	if(p[3]['value'] != ''):
-			p[0]['code'] += "IF " + p[3]['value'] + " == 0 THEN GOTO " + endLabel + '\n'
-	if(p[5]['code'] != ''):
-			p[0]['code'] += p[5]['code'] + "\n"
-	p[0]['code'] += "GOTO " + beginLabel + '\n'
-	p[0]['code'] += 'LABEL ' + endLabel
+			p[0]['code'] += [["IF",p[3]['value'],"==","0","GOTO",endLabel]]
+	if(p[5]['code'] != []):
+			p[0]['code'] += p[5]['code']
+	p[0]['code'] += [["GOTO",beginLabel]]
+	p[0]['code'] += [['LABEL',endLabel]]
 
 def p_iteration_statement2(p):
 	'''iteration_statement :  DO statement WHILE LPAREN expression RPAREN SEMI '''
 	#print "iteration_statement"
 	#p[0]=("iteration_statement",)+tuple(p[-len(p)+1:])
-	p[0] = {'code':''}
+	p[0] = {'code':[]}
 	beginLabel = createNewLabel()
 	endLabel = createNewLabel()
-	p[0]['code'] += 'LABEL ' + beginLabel + '\n'
-	if(p[2]['code'] != ''):
-			p[0]['code'] += p[2]['code'] + "\n"
-	if(p[5]['code'] != ''):
-			p[0]['code'] += p[5]['code'] + "\n"
+	p[0]['code'] += [['LABEL',beginLabel]]
+	if(p[2]['code'] != []):
+			p[0]['code'] += p[2]['code']
+	if(p[5]['code'] != []):
+			p[0]['code'] += p[5]['code']
 	if(p[5]['value'] != ''):
-			p[0]['code'] += "IF " + p[5]['value'] + " == 0 THEN GOTO " + endLabel + '\n'
-	p[0]['code'] += "GOTO " + beginLabel + '\n'
-	p[0]['code'] += 'LABEL ' + endLabel
+			p[0]['code'] += [["IF",p[5]['value'],"==","0","GOTO",endLabel]]
+	p[0]['code'] += [["GOTO",beginLabel]]
+	p[0]['code'] += [['LABEL',endLabel]]
 
 def p_iteration_statement3(p):
 	'''iteration_statement : FOR LPAREN expression_statement expression_statement RPAREN statement
@@ -836,35 +883,35 @@ def p_iteration_statement3(p):
 							'''
 	#print "iteration_statement"
 	#p[0]=("iteration_statement",)+tuple(p[-len(p)+1:])
-	p[0] = {'code':''}
+	p[0] = {'code':[]}
 	beginLabel = createNewLabel()
 	endLabel = createNewLabel()
 	if(len(p) == 7):
-		if(p[3]['code'] != ''):
-			p[0]['code'] += p[3]['code'] + "\n"
-		p[0]['code'] += 'LABEL ' + beginLabel + '\n'
-		if(p[4]['code'] != ''):
-			p[0]['code'] += p[4]['code'] + '\n'
+		if(p[3]['code'] != []):
+			p[0]['code'] += p[3]['code']
+		p[0]['code'] += [['LABEL',beginLabel]]
+		if(p[4]['code'] != []):
+			p[0]['code'] += p[4]['code']
 		if(p[4]['value'] != ''):
-			p[0]['code'] += "IF " + p[4]['value'] + " == 0 THEN GOTO " + endLabel + '\n'
-		if(p[6]['code'] != ''):
-			p[0]['code'] += p[6]['code'] + "\n"
-		p[0]['code'] += "GOTO " + beginLabel + '\n'
-		p[0]['code'] += 'LABEL ' + endLabel
+			p[0]['code'] += [["IF",p[4]['value'],"==","0","GOTO",endLabel]]
+		if(p[6]['code'] != []):
+			p[0]['code'] += p[6]['code']
+		p[0]['code'] += [["GOTO",beginLabel]]
+		p[0]['code'] += [['LABEL',endLabel]]
 	else:
-		if(p[3]['code'] != ''):
-			p[0]['code'] += p[3]['code'] + '\n'
-		p[0]['code'] += 'LABEL ' + beginLabel + '\n'
-		if(p[4]['code'] != ''):
-			p[0]['code'] += p[4]['code'] + "\n"
+		if(p[3]['code'] != []):
+			p[0]['code'] += p[3]['code']
+		p[0]['code'] += [['LABEL',beginLabel]]
+		if(p[4]['code'] != []):
+			p[0]['code'] += p[4]['code']
 		if(p[4]['value'] != ''):
-			p[0]['code'] += "IF " + p[4]['value'] + " == 0 THEN GOTO " + endLabel + '\n'
-		if(p[7]['code'] != ''):
-			p[0]['code'] += p[7]['code'] + '\n'
-		if(p[5]['code'] != ''):
-			p[0]['code'] += p[5]['code'] + "\n"
-		p[0]['code'] += "GOTO " + beginLabel + '\n'
-		p[0]['code'] += 'LABEL ' + endLabel
+			p[0]['code'] += [["IF",p[4]['value'],"==","0","GOTO",endLabel]]
+		if(p[7]['code'] != []):
+			p[0]['code'] += p[7]['code']
+		if(p[5]['code'] != []):
+			p[0]['code'] += p[5]['code']
+		p[0]['code'] += [["GOTO",beginLabel]]
+		p[0]['code'] += [['LABEL',endLabel]]
 
 def p_iteration_statement4(p):
 	'''iteration_statement : FOR LPAREN declaration expression_statement RPAREN statement
@@ -872,35 +919,35 @@ def p_iteration_statement4(p):
 							 '''
 	#print "iteration_statement"
 	#p[0]=("iteration_statement",)+tuple(p[-len(p)+1:])
-	p[0] = {'code':''}
+	p[0] = {'code':[]}
 	beginLabel = createNewLabel()
 	endLabel = createNewLabel()
 	if(len(p) == 7):
-		if(p[3]['code'] != ''):
-			p[0]['code'] += p[3]['code'] + "\n"
-		p[0]['code'] += 'LABEL ' + beginLabel + '\n'
-		if(p[4]['code'] != ''):
-			p[0]['code'] += p[4]['code'] + '\n'
+		if(p[3]['code'] != []):
+			p[0]['code'] += p[3]['code']
+		p[0]['code'] += [['LABEL',beginLabel]]
+		if(p[4]['code'] != []):
+			p[0]['code'] += p[4]['code']
 		if(p[4]['value'] != ''):
-			p[0]['code'] += "IF " + p[4]['value'] + " == 0 THEN GOTO " + endLabel + '\n'
-		if(p[6]['code'] != ''):
-			p[0]['code'] += p[6]['code'] + "\n"
-		p[0]['code'] += "GOTO " + beginLabel + '\n'
-		p[0]['code'] += 'LABEL ' + endLabel
+			p[0]['code'] += [["IF",p[4]['value'],"==","0","GOTO",endLabel]]
+		if(p[6]['code'] != []):
+			p[0]['code'] += p[6]['code']
+		p[0]['code'] += [["GOTO",beginLabel]]
+		p[0]['code'] += [['LABEL',endLabel]]
 	else:
-		if(p[3]['code'] != ''):
-			p[0]['code'] += p[3]['code'] + '\n'
-		p[0]['code'] += 'LABEL ' + beginLabel + '\n'
-		if(p[4]['code'] != ''):
-			p[0]['code'] += p[4]['code'] + "\n"
+		if(p[3]['code'] != []):
+			p[0]['code'] += p[3]['code']
+		p[0]['code'] += [['LABEL',beginLabel]]
+		if(p[4]['code'] != []):
+			p[0]['code'] += p[4]['code']
 		if(p[4]['value'] != ''):
-			p[0]['code'] += "IF " + p[4]['value'] + " == 0 THEN GOTO " + endLabel + '\n'
-		if(p[7]['code'] != ''):
-			p[0]['code'] += p[7]['code'] + '\n'
-		if(p[5]['code'] != ''):
-			p[0]['code'] += p[5]['code'] + "\n"
-		p[0]['code'] += "GOTO " + beginLabel + '\n'
-		p[0]['code'] += 'LABEL ' + endLabel
+			p[0]['code'] += [["IF",p[4]['value'],"==","0","GOTO",endLabel]]
+		if(p[7]['code'] != []):
+			p[0]['code'] += p[7]['code']
+		if(p[5]['code'] != []):
+			p[0]['code'] += p[5]['code']
+		p[0]['code'] += [["GOTO",beginLabel]]
+		p[0]['code'] += [['LABEL',endLabel]]
 
 def p_jump_statement(p):
 	'''jump_statement : GOTO IDENTIFIER SEMI 
@@ -915,12 +962,12 @@ def p_jump_statement2(p):
 	#print "jump_statement"
 	#p[0]=("jump_statement",)+tuple(p[-len(p)+1:])
 	if(len(p) == 3):
-		p[0] = {'code':"RETURN "}
+		p[0] = {'code':[RETURN]}
 	if(len(p) == 4):
-		p[0] = {'code':''}
-		if(p[2]['code'] != ''):
-			p[0]['code'] += p[2]['code'] + '\n'
-		p[0]['code'] += "RETURN " + p[2]['value']
+		p[0] = {'code':[]}
+		if(p[2]['code'] != []):
+			p[0]['code'] += p[2]['code']
+		p[0]['code'] += [["RETURN",p[2]['value']]]
 
 def p_external_declaration(p):
 	'''external_declaration : function_definition
@@ -935,8 +982,9 @@ def p_function_definition(p):
 	#print "function_definition"
 	#p[0]=("function_definition",)+tuple(p[-len(p)+1:])
 	if(len(p) == 4):
-		p[0] = {'code':''}
-		p[0]['code'] = "BEGINFUCTION " + p[1]['code'] + " " + p[2]['code'] + "\n" + p[3]['code'] + "\nENDFUCTION"
+		p[0] = {'code':[]}
+		p[0]['code'] = [['BEGINFUCTION',p[1]['value']] + p[2]['code']] + p[3]['code'] + [['ENDFUNCTION']]
+		#p[0]['code'] = "BEGINFUCTION " + p[1]['code'] + " " + p[2]['code'] + "\n" + p[3]['code'] + "\nENDFUCTION"
 
 def p_declaration_list(p):
 	'''declaration_list : declaration
