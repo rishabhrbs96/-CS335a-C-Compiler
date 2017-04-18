@@ -1,5 +1,4 @@
-int main(int a){
-	if(a=b) {
-		
-	}
+int main(){
+	int a;
+	a = 0;
 }
