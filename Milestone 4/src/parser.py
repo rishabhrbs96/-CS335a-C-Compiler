@@ -1020,7 +1020,7 @@ if __name__ == "__main__":
 		tree = yacc.parse(data)
 		#print tree['code'],"\n"
 		dump = tree['code'].pop()
-		tree['code'].append(['PRINTINT','c'])
+		tree['code'].append(['PRINTINT','result'])
 		tree['code'].append(['ENDFUNCTION'])
 		create_mips(tree['code'])
 		os.system(" spim -file code.asm ")

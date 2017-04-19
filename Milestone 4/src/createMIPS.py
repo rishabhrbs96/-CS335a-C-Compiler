@@ -39,9 +39,9 @@ def create_mips(code):
 	global data_section
 	global text_section
 	global declaredVars
-	#print "----------- Three Address Code -----------\n"
+	print "----------- Three Address Code -----------\n"
 	for line in code:
-		#print line
+		print line
 		if(line != []):
 			if(line[0] == 'BEGINFUCTION'):
 				text_section += [line[2]+':']
@@ -83,6 +83,51 @@ def create_mips(code):
 				text_section += [line[1]+':']
 				pass
 			elif(line[0] == 'GOTO'):
+				text_section += ["\tb\t"+line[1]]
+				pass
+			elif(line[0] == 'IF'):
+				if(line[2] == "=="):
+					register = line[1]
+					register3 = line[3]
+					if(isVar(line[1])):
+						register = getReg('VAR_'+line[1])
+					if(isVar(line[3])):
+						register3 = getReg('VAR_'+line[3])
+					text_section += ["\tbeq\t"+register+",\t"+register3+",\t"+line[5]]
+				elif (line[2] == "<"):
+					register = line[1]
+					register3 = line[3]
+					if(isVar(line[1])):
+						register = getReg('VAR_'+line[1])
+					if(isVar(line[3])):
+						register3 = getReg('VAR_'+line[3])
+					text_section += ["\tblt\t"+register+",\t"+register3+",\t"+line[5]]
+				elif (line[2] == ">"):
+					register = line[1]
+					register3 = line[3]
+					if(isVar(line[1])):
+						register = getReg('VAR_'+line[1])
+					if(isVar(line[3])):
+						register3 = getReg('VAR_'+line[3])
+					text_section += ["\tbgt\t"+register+",\t"+register3+",\t"+line[5]]
+				elif (line[2] == "<="):
+					register = line[1]
+					register3 = line[3]
+					if(isVar(line[1])):
+						register = getReg('VAR_'+line[1])
+					if(isVar(line[3])):
+						register3 = getReg('VAR_'+line[3])
+					text_section += ["\tble\t"+register+",\t"+register3+",\t"+line[5]]
+				elif (line[2] == ">="):
+					register = line[1]
+					register3 = line[3]
+					if(isVar(line[1])):
+						register = getReg('VAR_'+line[1])
+					if(isVar(line[3])):
+						register3 = getReg('VAR_'+line[3])
+					text_section += ["\tbge\t"+register+",\t"+register3+",\t"+line[5]]
+				else:
+					pass
 				pass
 			elif(line[0] == 'PRINTINT'):
 				text_section += ["\tli\t$v0,\t1"]
@@ -104,6 +149,34 @@ def create_mips(code):
 				text_section += ["\tadd\t"+register+",\t"+register2+",\t"+register3]
 				pass
 			elif(line[0] == '-'):
+				register = getReg('VAR_'+line[1])
+				register2 = line[2]
+				register3 = line[3]
+				if(isVar(line[2])):
+					register2 = getReg('VAR_'+line[2])
+				if(isVar(line[3])):
+					register3 = getReg('VAR_'+line[3])
+				text_section += ["\tsub\t"+register+",\t"+register2+",\t"+register3]
+				pass
+			elif(line[0] == '*'):
+				register = getReg('VAR_'+line[1])
+				register2 = line[2]
+				register3 = line[3]
+				if(isVar(line[2])):
+					register2 = getReg('VAR_'+line[2])
+				if(isVar(line[3])):
+					register3 = getReg('VAR_'+line[3])
+				text_section += ["\tmul\t"+register+",\t"+register2+",\t"+register3]
+				pass
+			elif(line[0] == '/'):
+				register = getReg('VAR_'+line[1])
+				register2 = line[2]
+				register3 = line[3]
+				if(isVar(line[2])):
+					register2 = getReg('VAR_'+line[2])
+				if(isVar(line[3])):
+					register3 = getReg('VAR_'+line[3])
+				text_section += ["\tdiv\t"+register+",\t"+register2+",\t"+register3]
 				pass
 			elif(line[0] == '='):
 				register = getReg('VAR_'+line[1])
