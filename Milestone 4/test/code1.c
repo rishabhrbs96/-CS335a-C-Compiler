@@ -1,12 +1,10 @@
 int main(){
 	int a = 0;
 	int b = 1;
-	int t = 2;
 	int result = 0;
-	while(t <= 10) {
+	for(int t = 2; t <= 10; t++) {
 		result = a + b;
 		a = b;
 		b = result;
-		t = t + 1;
 	}
 }
