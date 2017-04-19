@@ -8,11 +8,10 @@ from createParseTree import create_tree
 from createParseTree import calc_tree
 from createParseTree import tokenVal
 from createMIPS import create_mips
-global tempVarCounter
-tempVarCounter = 0
-global labelCounter
-labelCounter = 0
 
+tempVarCounter = 0
+labelCounter = 0
+arrayDeclFlag = 0
 
 tokens = lexer.tokens
 flag_for_error = 0
@@ -96,7 +95,6 @@ def p_generic_association(p):
 		
 def p_postfix_expression(p):
 	'''postfix_expression : primary_expression
-							| postfix_expression LBRACKET expression RBRACKET
 							| postfix_expression LPAREN RPAREN
 							| postfix_expression LPAREN argument_expression_list RPAREN
 							| postfix_expression PERIOD IDENTIFIER
@@ -131,6 +129,26 @@ def p_postfix_expression2(p):
 	if(p[1]['code'] != []):
 		p[0]['code'] += p[1]['code']
 	p[0]['code'] += [[p[2],p[1]['value']]]
+
+def p_postfix_expression3(p):
+	'''postfix_expression : IDENTIFIER LBRACKET expression RBRACKET
+							| IDENTIFIER LBRACKET expression RBRACKET LBRACKET expression RBRACKET '''
+	#print "postfix_expresssion"
+	#p[0]=("postfix_expresssion",)+tuple(p[-len(p)+1:])
+	if(len(p) == 5):
+		newVar = createNewTempVar()
+		p[0] = {'code':[],'value':newVar}
+		if(p[3]['code'] != []):
+			p[0]['code'] += p[3]['code']
+		p[0]['code'] += [['GETARRAY',newVar,p[1],'1',p[3]['value']]]
+	else:
+		newVar = createNewTempVar()
+		p[0] = {'code':[],'value':newVar}
+		if(p[3]['code'] != []):
+			p[0]['code'] += p[3]['code']
+		if(p[6]['code'] != []):
+			p[0]['code'] += p[6]['code']
+		p[0]['code'] += [['GETARRAY',newVar,p[1],'2',p[3]['value'],p[6]['value']]]
 	
 def p_argument_expression_list(p):
 	'''argument_expression_list : assignment_expression
@@ -392,6 +410,11 @@ def p_assignment_expression(p):
 		if(p[3]['code'] != []):
 			p[0]['code'] += p[3]['code']
 		p[0]['code'] += [[p[2]['value'],p[1]['value'],p[3]['value']]]
+		if(p[1]['code'] != []):
+			if(p[1]['code'][0][0] == 'GETARRAY'):
+				p[1]['code'][0][0] = 'PUTARRAY'
+			p[0]['code'] += p[1]['code']
+		
 
 def p_assignment_operator(p):
 	'''assignment_operator : EQUALS 
@@ -431,18 +454,21 @@ def p_declaration(p):
 					| static_assert_declaration '''
 	#print "declaration"
 	#p[0]=("declaration",)+tuple(p[-len(p)+1:])
-	if(len(p) == 4):
-		p[0] = {'code':[]}
-		beg = ['VARDECLARATION'] + [p[1]['value']]
-		j = 0
-		for x in p[2]['value']:
-			p[0]['code'] += [beg + [x]]
-			p[0]['code'] += p[2]['code'][j]
-			j = j + 1
+	global arrayDeclFlag
+	if(arrayDeclFlag == 0):
+		if(len(p) == 4):
+			p[0] = {'code':[]}
+			beg = ['VARDECLARATION'] + [p[1]['value']]
+			j = 0
+			for x in p[2]['value']:
+				p[0]['code'] += [beg + [x]]
+				p[0]['code'] += p[2]['code'][j]
+				j = j + 1
+		else:
+			p[0] = {'code':[['VARDECLARATION'] + [p[1]['value']]]}
 	else:
-		p[0] = {'code':[['VARDECLARATION'] + [p[1]['value']]]}
-		
-		
+		arrayDeclFlag = 0
+		p[0] = {'code':[['ARRDECLARATION',p[1]['value']] + p[2]['value']]}
 
 def p_declaration_specifiers(p):
 	'''declaration_specifiers : storage_class_specifier declaration_specifiers
@@ -465,10 +491,14 @@ def p_init_declarator_list(p):
 							| init_declarator_list COMMA init_declarator '''
 	#print "init_declarator_list"
 	#p[0]=("init_declarator_list",)+tuple(p[-len(p)+1:])
-	if(len(p) == 2):
-		p[0] = {'code':[p[1]['code']],'value':[p[1]['value']]}
+	global arrayDeclFlag
+	if(arrayDeclFlag == 0):
+		if(len(p) == 2):
+			p[0] = {'code':[p[1]['code']],'value':[p[1]['value']]}
+		else:
+			p[0] = {'code':p[1]['code'] + [p[3]['code']],'value':p[1]['value'] + [p[3]['value']]}
 	else:
-		p[0] = {'code':p[1]['code'] + [p[3]['code']],'value':p[1]['value'] + [p[3]['value']]}
+		p[0] = p[1]
 
 def p_init_declarator(p):
 	'''init_declarator : declarator EQUALS initializer
@@ -613,16 +643,6 @@ def p_declarator(p):
 
 def p_direct_declarator(p):
 	'''direct_declarator : IDENTIFIER
-							| LPAREN declarator RPAREN
-							| direct_declarator LBRACKET RBRACKET
-							| direct_declarator LBRACKET TIMES RBRACKET
-							| direct_declarator LBRACKET STATIC type_qualifier_list assignment_expression RBRACKET
-							| direct_declarator LBRACKET STATIC assignment_expression RBRACKET
-							| direct_declarator LBRACKET type_qualifier_list TIMES RBRACKET
-							| direct_declarator LBRACKET type_qualifier_list STATIC assignment_expression RBRACKET
-							| direct_declarator LBRACKET type_qualifier_list assignment_expression RBRACKET
-							| direct_declarator LBRACKET type_qualifier_list RBRACKET
-							| direct_declarator LBRACKET assignment_expression RBRACKET
 							| direct_declarator LPAREN parameter_type_list RPAREN
 							| direct_declarator LPAREN RPAREN
 							| direct_declarator LPAREN identifier_list RPAREN '''
@@ -637,6 +657,36 @@ def p_direct_declarator(p):
 		p[0]['code'] += [p[1]['value']] + ['ACTPARAMS'] + p[3]['code']
 	else:
 		pass
+
+def p_direct_declarator2(p):
+	'''direct_declarator : IDENTIFIER LBRACKET arrayindex RBRACKET
+							| IDENTIFIER LBRACKET arrayindex RBRACKET LBRACKET arrayindex RBRACKET '''
+	#print "direct_declarator"
+	global arrayDeclFlag
+	arrayDeclFlag = 1
+	if(len(p) == 5):
+		p[0] = {'code': [],'value':[p[1],'1',p[3]['value']] }
+	else:
+		p[0] = {'code': [],'value':[p[1],'2',p[3]['value'],p[6]['value']] }
+
+def p_arrayindex(p):
+	'''arrayindex : IDENTIFIER
+				| I_CONSTANT '''
+	p[0] = {'value':p[1],'code':[]}
+
+def p_direct_declarator3(p):
+	'''direct_declarator : LPAREN declarator RPAREN
+							| direct_declarator LBRACKET TIMES RBRACKET
+							| direct_declarator LBRACKET STATIC type_qualifier_list assignment_expression RBRACKET
+							| direct_declarator LBRACKET STATIC assignment_expression RBRACKET
+							| direct_declarator LBRACKET type_qualifier_list TIMES RBRACKET
+							| direct_declarator LBRACKET type_qualifier_list STATIC assignment_expression RBRACKET
+							| direct_declarator LBRACKET type_qualifier_list assignment_expression RBRACKET
+							| direct_declarator LBRACKET type_qualifier_list RBRACKET '''
+	#print "direct_declarator"
+	#p[0]=("direct_declarator",)+tuple(p[-len(p)+1:])
+	pass
+
 def p_pointer(p):
 	'''pointer : TIMES type_qualifier_list pointer
 				| TIMES type_qualifier_list 

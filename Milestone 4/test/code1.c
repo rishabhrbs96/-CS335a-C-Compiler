@@ -1,4 +1,4 @@
 
 int main() {
-	x = foo(a,bar());	
+	x = a[2][4];
 }
