@@ -194,14 +194,6 @@ def create_mips(code):
 				register = getReg('VAR_'+line[1])
 				text_section += ["\tsub\t"+register+",\t"+register+",\t1"]
 				pass
-			elif(line[1] == '++'):
-				register = getReg('VAR_'+line[0])
-				text_section += ["\tadd\t"+register+",\t"+register+",\t1"]
-				pass
-			elif(line[1] == '--'):
-				register = getReg('VAR_'+line[0])
-				text_section += ["\tsub\t"+register+",\t"+register+",\t1"]
-				pass
 			else:
 				pass
 	#print "\n----------- MIPS code -----------\n"

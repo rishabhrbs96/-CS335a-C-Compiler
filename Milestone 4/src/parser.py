@@ -107,6 +107,18 @@ def p_postfix_expression(p):
 	#p[0]=("postfix_expresssion",)+tuple(p[-len(p)+1:])
 	if(len(p) == 2):
 		p[0] = p[1]
+	elif(len(p) == 4):
+		#if(p[1]['value'] ret type != void)
+		#newVar = createNewTempVar()
+		#p[0] = {'code':[['FCALL',p[1]['value'],newVar]] + [['PARAMS']], 'value':newVar }
+		#else:
+		p[0] = {'code':[['FCALL',p[1]['value']]] + [['PARAMS']], 'value':p[1]['value'] }
+	elif(len(p) == 5):
+		#if(p[1]['value'] ret type != void)
+		#newVar = createNewTempVar()
+		#p[0] = {'code':p[3]['code']+ [['FCALL',p[1]['value'],newVar]] + [['PARAMS'] + p[3]['value']], 'value':newVar}
+		#else:
+		p[0] = {'code':p[3]['code']+ [['FCALL',p[1]['value']]] + [['PARAMS'] + p[3]['value']], 'value':p[1]['value'] }
 	else:
 		pass
 
@@ -125,7 +137,11 @@ def p_argument_expression_list(p):
 								| argument_expression_list COMMA assignment_expression '''
 	#print "argument_expression_list"
 	#p[0]=("argument_expression_list",)+tuple(p[-len(p)+1:])
-		
+	if(len(p) == 2):
+		p[0] = {'code':p[1]['code'],'value':[p[1]['value']]}
+	else:
+		p[0] = {'code':p[1]['code'] + p[3]['code'],'value':p[1]['value'] + [p[3]['value']]}
+
 def p_unary_expression(p):
 	'''unary_expression : postfix_expression
 						| INC_OP unary_expression
@@ -1023,7 +1039,7 @@ if __name__ == "__main__":
 		tree['code'].append(['PRINTINT','result'])
 		tree['code'].append(['ENDFUNCTION'])
 		create_mips(tree['code'])
-		os.system(" spim -file code.asm ")
+		#os.system(" spim -file code.asm ")
 		#if tree is not None and flag_for_error == 0:
 		#	createParseTree.create_tree(tree,str(sys.argv[1]))
 		#	print "Parse tree created : "+str(sys.argv[1])+"tree.svg"
