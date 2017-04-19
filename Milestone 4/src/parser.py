@@ -1018,8 +1018,12 @@ if __name__ == "__main__":
 		data = fo.read()
 		fo.close()
 		tree = yacc.parse(data)
-		print tree['code'],"\n"
+		#print tree['code'],"\n"
+		dump = tree['code'].pop()
+		tree['code'].append(['PRINTINT','c'])
+		tree['code'].append(['ENDFUNCTION'])
 		create_mips(tree['code'])
+		os.system(" spim -file code.asm ")
 		#if tree is not None and flag_for_error == 0:
 		#	createParseTree.create_tree(tree,str(sys.argv[1]))
 		#	print "Parse tree created : "+str(sys.argv[1])+"tree.svg"
