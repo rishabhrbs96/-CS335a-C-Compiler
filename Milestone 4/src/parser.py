@@ -4,6 +4,7 @@ import lexer
 import ply.yacc as yacc
 import createParseTree
 import createMIPS
+
 from createParseTree import create_tree
 from createParseTree import calc_tree
 from createParseTree import tokenVal
@@ -15,6 +16,73 @@ arrayDeclFlag = 0
 
 tokens = lexer.tokens
 flag_for_error = 0
+
+
+################################### for symbol table
+
+from SymbolTable import *
+
+global currentSymbolTable
+currentSymbolTable = SymbolTable(-1)
+global parameterSymbolTable 
+parameterSymbolTable = SymbolTable(-1)
+
+global FUNCTION_LIST_DEFINITION
+FUNCTION_LIST_DEFINITION = []
+
+global functions
+functions = []
+
+global lastChild
+
+
+
+def type_cast_assign(s1,s2):
+	data_types=["short","float","double","int","long","long long","char"]
+	if((s1 in data_types) and (s2 in data_types)):
+		return s1
+	else:
+		return "error"
+
+
+def type_cast_addmul(s1,s2):
+	if(s1>s2):
+		tmp_var=s1
+		s1=s2
+		s2=tmp_var
+
+	if(s1=="float" and s2 =="int"):
+		return "float"
+	elif(s1=="double" and s2 =="float"):
+		return "double"
+	elif(s1=="double" and s2 =="int"):
+		return "double"
+	elif(s1=="int" and s2 =="long"):
+		return "long"
+	elif(s1=="int" and s2 =="long long"):
+		return "long long"
+	elif(s1=="int" and s2=="short"):
+		return "int"
+	else:
+		return "error"
+
+def printSymbolTable(table):
+	print table.tableName
+	print table.tableNumber
+	print table.symbols
+	for x in table.entries :
+		print x
+	for x in table.childList.values() :
+		printSymbolTable(x)
+	print "--------para table",table.tableName
+	for x in table.parameterTable :
+		printSymbolTable(x)
+	print "---------------end para table",table.tableName
+###################################
+
+
+
+
 
 def createNewTempVar():
 	global tempVarCounter
@@ -53,8 +121,10 @@ def p_primary_expression2(p):
 	'''primary_expression : IDENTIFIER '''
 	#print "primary_expression"
 	#p[0]=("primary_expression",)+tuple(p[-len(p)+1:])
-	if(len(p) == 2):
-		p[0] = {'value':p[1],'code':[]}
+	p[0] = {'value':p[1],'code':[]}
+	if(currentSymbolTable.lookup(p[1]) == False):
+		print "ERROR at line number ", p.lineno(1) ,": Variable ",p[1]," not declared: "
+		sys.exit()
 
 def p_constant(p):
 	'''constant : I_CONSTANT
@@ -99,8 +169,8 @@ def p_postfix_expression(p):
 							| postfix_expression LPAREN argument_expression_list RPAREN
 							| postfix_expression PERIOD IDENTIFIER
 							| postfix_expression PTR_OP IDENTIFIER
-							| LPAREN type_name RPAREN LBRACE initializer_list RBRACE
-							| LPAREN type_name RPAREN LBRACE initializer_list COMMA RBRACE '''
+							| LPAREN type_name RPAREN left_brace initializer_list right_brace
+							| LPAREN type_name RPAREN left_brace initializer_list COMMA right_brace '''
 	#print "postfix_expresssion"
 	#p[0]=("postfix_expresssion",)+tuple(p[-len(p)+1:])
 	if(len(p) == 2):
@@ -186,8 +256,10 @@ def p_unary_expression2(p):
 		newVar = createNewTempVar()
 		p[0] = {'code':[],'value':newVar}
 		if(p[2]['code'] != []):
-			p[0]['code'] += p[2]['code'] + "\n"
-		p[0]['code'] += newVar + ' = ' + p[1]['value'] + " " + p[2]['value']
+			p[0]['code'] += p[2]['code']
+		newVar2 = createNewTempVar()
+		p[0]['code'] += [['=',newVar2,p[1]['value']+'1']]
+		p[0]['code'] += [['*',newVar,newVar2,p[2]['value']]]
 	else:
 		pass
 
@@ -464,11 +536,17 @@ def p_declaration(p):
 				p[0]['code'] += [beg + [x]]
 				p[0]['code'] += p[2]['code'][j]
 				j = j + 1
+				if(currentSymbolTable.insert(['ID',x,'void',p[1]['value'],0,[]]) == False):
+					print "ERROR at line number ", p.lineno(1) ,' : Variable ',x,' already declared '
+					sys.exit()
 		else:
 			p[0] = {'code':[['VARDECLARATION'] + [p[1]['value']]]}
 	else:
 		arrayDeclFlag = 0
 		p[0] = {'code':[['ARRDECLARATION',p[1]['value']] + p[2]['value']]}
+		if(currentSymbolTable.insert(['ID',p[2]['value'][0],'void',p[1]['value'],int(p[2]['value'][1]),list(map(int, p[2]['value'][2:]))]) == False):
+			print "ERROR at line number ", p.lineno(1) ,' : Variable ',x,' already declared '
+			sys.exit()
 
 def p_declaration_specifiers(p):
 	'''declaration_specifiers : storage_class_specifier declaration_specifiers
@@ -546,8 +624,8 @@ def p_type_specifier(p):
 	p[0] = {'code':[],'value':p[1]}
 
 def p_struct_or_union_specifier(p):
-	'''struct_or_union_specifier : struct_or_union LBRACE struct_declaration_list RBRACE
-								| struct_or_union IDENTIFIER LBRACE struct_declaration_list RBRACE
+	'''struct_or_union_specifier : struct_or_union left_brace struct_declaration_list right_brace
+								| struct_or_union IDENTIFIER left_brace struct_declaration_list right_brace
 								| struct_or_union IDENTIFIER '''
 	#print "struct_or_union_specifier"
 	#p[0]=("struct_or_union_specifier",)+tuple(p[-len(p)+1:])
@@ -593,10 +671,10 @@ def p_struct_declarator(p):
 	#p[0]=("struct_declarator",)+tuple(p[-len(p)+1:])                        #changetoken
 	
 def p_enum_specifier(p):
-	'''enum_specifier : ENUM LBRACE enumerator_list RBRACE
-						| ENUM LBRACE enumerator_list COMMA RBRACE
-						| ENUM IDENTIFIER LBRACE enumerator_list RBRACE
-						| ENUM IDENTIFIER LBRACE enumerator_list COMMA RBRACE
+	'''enum_specifier : ENUM left_brace enumerator_list right_brace
+						| ENUM left_brace enumerator_list COMMA right_brace
+						| ENUM IDENTIFIER left_brace enumerator_list right_brace
+						| ENUM IDENTIFIER left_brace enumerator_list COMMA right_brace
 						| ENUM IDENTIFIER '''
 	#print "enum_specifier"
 	#p[0]=("enum_specifier",)+tuple(p[-len(p)+1:])                        #changetoken
@@ -670,8 +748,12 @@ def p_direct_declarator2(p):
 		p[0] = {'code': [],'value':[p[1],'2',p[3]['value'],p[6]['value']] }
 
 def p_arrayindex(p):
-	'''arrayindex : IDENTIFIER
-				| I_CONSTANT '''
+	'''arrayindex : IDENTIFIER '''
+	print "ERROR at line number ", p.lineno(1) ,' : Array index should be a constant'
+	sys.exit()
+
+def p_arrayindex2(p):
+	'''arrayindex : I_CONSTANT '''
 	p[0] = {'value':p[1],'code':[]}
 
 def p_direct_declarator3(p):
@@ -731,6 +813,9 @@ def p_parameter_declaration(p):
 		p[0] = p[1]
 	else:
 		p[0] = {'code':[p[1]['value']] + [p[2]['value']]}
+		if (parameterSymbolTable.insert(['ID',p[2]['value'],'void',p[1]['value'],0,[]]) == False):
+			print "ERROR at line number ", p.lineno(1) ,' : Variable ',x,' already declared '
+			sys.exit()
 
 def p_identifier_list(p):
 	'''identifier_list : IDENTIFIER
@@ -778,8 +863,8 @@ def p_direct_abstract_declarator(p):
 	#p[0]=("direct_abstract_declarator",)+tuple(p[-len(p)+1:])
 	
 def p_initializer(p):
-	'''initializer : LBRACE initializer_list RBRACE
-					| LBRACE initializer_list COMMA RBRACE 
+	'''initializer : left_brace initializer_list right_brace
+					| left_brace initializer_list COMMA right_brace 
 					| assignment_expression '''
 	#print "initializer"
 	#p[0]=("initializer",)+tuple(p[-len(p)+1:])
@@ -839,8 +924,8 @@ def p_labeled_statement(p):
 	#p[0]=("labeled_statement",)+tuple(p[-len(p)+1:])
 	
 def p_compound_statement(p):
-	'''compound_statement : LBRACE RBRACE 
-							| LBRACE block_item_list RBRACE '''
+	'''compound_statement : left_brace right_brace 
+							| left_brace block_item_list right_brace '''
 	#print "compound_statement"
 	#p[0]=("compound_statement",)+tuple(p[-len(p)+1:])
 	if(len(p) == 3):
@@ -1047,12 +1132,32 @@ def p_function_definition(p):
 							| declaration_specifiers declarator compound_statement '''
 	#print "function_definition"
 	#p[0]=("function_definition",)+tuple(p[-len(p)+1:])
+	global FUNCTION_LIST_DEFINITION
 	if(len(p) == 4):
 		p[0] = {'code':[]}
 		if(p[2].has_key('value')):
 			p[0]['code'] = [['BEGINFUCTION',p[1]['value']] + [p[2]['value']]] + p[3]['code'] + [['ENDFUNCTION']]
+			lastChild.tableName = p[2]['value']
+			lastChild.parameterTable[0].tableName = "PATAMETER TABLE OF " + p[2]['value']
+			if(currentSymbolTable.insert(['FN',p[2]['value'],['void'],p[1]['value']]) == False):
+				print "ERROR at line number ", p.lineno(1) ,' : Variable ',p[2]['value'],' already declared '
+				sys.exit()
+			currentSymbolTable.childList[lastChild.tableName] = lastChild
+			FUNCTION_LIST_DEFINITION += [{"NAME":p[2]['value'],"INPUT":['void'],"OUTPUT":p[1]['value']}]
 		else:
 			p[0]['code'] = [['BEGINFUCTION',p[1]['value']] + p[2]['code']] + p[3]['code'] + [['ENDFUNCTION']]
+			lastChild.tableName = p[2]['code'][0]
+			lastChild.parameterTable[0].tableName = "PATAMETER TABLE OF " + p[2]['code'][0]
+			inp = []
+			x = 2
+			while(x < len(p[2]['code'])):
+				inp += [p[2]['code'][x]]
+				x = x + 2
+			if(currentSymbolTable.insert(['FN',p[2]['code'][0],inp,p[1]['value']]) == False):
+				print "ERROR at line number ", p.lineno(1) ,' : Variable ',p[2]['code'][0],' already declared '
+				sys.exit()
+			currentSymbolTable.childList[lastChild.tableName] = lastChild
+			FUNCTION_LIST_DEFINITION += [{"NAME":p[2]['code'][0],"INPUT":inp,"OUTPUT":p[1]['value']}]
 		#p[0]['code'] = "BEGINFUCTION " + p[1]['code'] + " " + p[2]['code'] + "\n" + p[3]['code'] + "\nENDFUCTION"
 
 def p_declaration_list(p):
@@ -1060,7 +1165,32 @@ def p_declaration_list(p):
 						| declaration_list declaration '''
 	#print "declaration_list"
 	#p[0]=("declaration_list",)+tuple(p[-len(p)+1:])
+
+
+def p_leftbrace(p):
+	''' left_brace : LBRACE
+					'''
+	#p[0] = p[1]
+	#print "-----Making NewSymbolTable---------"
+	global currentSymbolTable
+	global parameterSymbolTable
 	
+	currentSymbolTable = SymbolTable(currentSymbolTable)
+	currentSymbolTable.parameterTable.append(parameterSymbolTable)
+	parameterSymbolTable.parent = currentSymbolTable
+	parameterSymbolTable = SymbolTable(-1)
+
+def p_righttbrace(p):
+	''' right_brace : RBRACE
+					'''
+	#p[0] = p[1]
+	#print "--------EXITING CURRENT SYMBOL TABLE--------------"
+	global currentSymbolTable
+	global lastChild
+	global parameterSymbolTable
+	
+	lastChild = currentSymbolTable
+	currentSymbolTable = currentSymbolTable.parent
 	
 def p_error(p):
     global flag_for_error
@@ -1084,11 +1214,15 @@ if __name__ == "__main__":
 		data = fo.read()
 		fo.close()
 		tree = yacc.parse(data)
+		#print FUNCTION_LIST_DEFINITION
+		printSymbolTable(currentSymbolTable)
+		#for l in tree['code']:
+		#	print l
 		#print tree['code'],"\n"
-		dump = tree['code'].pop()
-		tree['code'].append(['PRINTINT','result'])
-		tree['code'].append(['ENDFUNCTION'])
-		create_mips(tree['code'])
+		#dump = tree['code'].pop()
+		#tree['code'].append(['PRINTINT','result'])
+		#tree['code'].append(['ENDFUNCTION'])
+		#create_mips(tree['code'])
 		#os.system(" spim -file code.asm ")
 		#if tree is not None and flag_for_error == 0:
 		#	createParseTree.create_tree(tree,str(sys.argv[1]))
