@@ -1138,7 +1138,9 @@ def p_function_definition(p):
 		if(p[2].has_key('value')):
 			p[0]['code'] = [['BEGINFUCTION',p[1]['value']] + [p[2]['value']]] + p[3]['code'] + [['ENDFUNCTION']]
 			lastChild.tableName = p[2]['value']
-			lastChild.parameterTable[0].tableName = "PATAMETER TABLE OF " + p[2]['value']
+			lastChild.parameterTable[0].tableName = "PATAMETER" + p[2]['value']
+			lastChild.addName()
+			lastChild.parameterTable[0].addName()
 			if(currentSymbolTable.insert(['FN',p[2]['value'],['void'],p[1]['value']]) == False):
 				print "ERROR at line number ", p.lineno(1) ,' : Variable ',p[2]['value'],' already declared '
 				sys.exit()
@@ -1147,7 +1149,9 @@ def p_function_definition(p):
 		else:
 			p[0]['code'] = [['BEGINFUCTION',p[1]['value']] + p[2]['code']] + p[3]['code'] + [['ENDFUNCTION']]
 			lastChild.tableName = p[2]['code'][0]
-			lastChild.parameterTable[0].tableName = "PATAMETER TABLE OF " + p[2]['code'][0]
+			lastChild.parameterTable[0].tableName = "PATAMETER" + p[2]['code'][0]
+			lastChild.addName()
+			lastChild.parameterTable[0].addName()
 			inp = []
 			x = 2
 			while(x < len(p[2]['code'])):
@@ -1215,15 +1219,15 @@ if __name__ == "__main__":
 		fo.close()
 		tree = yacc.parse(data)
 		#print FUNCTION_LIST_DEFINITION
-		printSymbolTable(currentSymbolTable)
+		#printSymbolTable(currentSymbolTable)
 		#for l in tree['code']:
 		#	print l
 		#print tree['code'],"\n"
-		#dump = tree['code'].pop()
-		#tree['code'].append(['PRINTINT','result'])
-		#tree['code'].append(['ENDFUNCTION'])
-		#create_mips(tree['code'])
-		#os.system(" spim -file code.asm ")
+		dump = tree['code'].pop()
+		tree['code'].append(['PRINTINT','result'])
+		tree['code'].append(['ENDFUNCTION'])
+		create_mips(tree['code'],currentSymbolTable,tempVarCounter)
+		os.system(" spim -file code.asm ")
 		#if tree is not None and flag_for_error == 0:
 		#	createParseTree.create_tree(tree,str(sys.argv[1]))
 		#	print "Parse tree created : "+str(sys.argv[1])+"tree.svg"

@@ -49,7 +49,7 @@ class SymbolTable:
 			self.depth=0
 			self.offsets = []
 			self.offset_count=0
-			self.tableName = 'GLOBAL TABLE'
+			self.tableName = 'GLOBALTABLE'
 		else:
 			self.depth = theParent.depth+1
 			self.offsets = []
@@ -63,6 +63,7 @@ class SymbolTable:
 			newEntry['name'] = entry[1]
 			newEntry['input'] = entry[2]
 			newEntry['output'] = entry[3]
+			newEntry['scope'] = self.tableName
 			self.offsets += [self.offset_count]
 			newEntry['offset'] = self.offset_count
 			if(newEntry['type'] == 'ID'):
@@ -101,6 +102,9 @@ class SymbolTable:
 				return table.entries[table.symbols.index(name)]
 		return False
 
+	def addName(self):
+		for e in self.entries:
+			e['scope'] = self.tableName
 
 #	def lookup(self,mystring):
 #		table = self
