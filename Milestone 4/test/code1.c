@@ -1,9 +1,14 @@
-int a = 3;
-int b[2][2];
+
+int fib(int n)
+{	if(n <= 1)
+      return n;
+   return fib(n-1) + fib(n-2);
+}
+
 int main(){
-	int d = 2147483647;
-	int bss = 1;
-	b[1][1] = d;
-	b[1][0] = bss;
-	int result = b[1][1] * b[1][0];
+	int result;
+	int n = 20;
+	get(n);
+	result = fib(n);
+	put(result);
 }

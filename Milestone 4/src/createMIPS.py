@@ -6,15 +6,33 @@ global_text = []
 global if_begin
 
 addressDescriptor = {}
+activation_record = []
 registerDescriptor = { '$t0' : None, '$t1' : None, '$t2' : None, '$t3' : None, '$t4' : None, '$t5' : None,  '$t6' : None, '$t7' : None, '$t8' : None, '$t9' : None, '$s0' : None, '$s1' : None, '$s2' : None, '$s3' : None, '$s4' : None }
 freeRegisters = ['$s4','$s3','$s2','$s1','$s0','$t9', '$t8', '$t7', '$t6', '$t5', '$t4', '$t3', '$t2', '$t1', '$t0']
+parameterDescriptor={ '$a1' : None, '$a2' : None, '$a3' : None}
 busyRegisters = []
+funlist = {}
+
+freed_labels = []
 
 declaredVars = []
 global currentSymbolTable
 global symbolTableStack
 symbolTableStack = []
 global tempVarCounter
+
+def reset_reg():
+	global registerDescriptor
+	global freeRegisters
+	global busyRegisters
+	global parameterDescriptor
+	global addressDescriptor
+
+	addressDescriptor = {}
+	registerDescriptor = { '$t0' : None, '$t1' : None, '$t2' : None, '$t3' : None, '$t4' : None, '$t5' : None,  '$t6' : None, '$t7' : None, '$t8' : None, '$t9' : None, '$s0' : None, '$s1' : None, '$s2' : None, '$s3' : None, '$s4' : None }
+	freeRegisters = ['$s4','$s3','$s2','$s1','$s0','$t9', '$t8', '$t7', '$t6', '$t5', '$t4', '$t3', '$t2', '$t1', '$t0']
+	busyRegisters = []	
+	parameterDescriptor={ '$a1' : None, '$a2' : None, '$a3' : None}
 
 def convName(var):
 	global currentSymbolTable
@@ -51,9 +69,15 @@ def getReg(var):
 	global addressDescriptor
 	global text_section
 	global declaredVars
-
+	global parameterDescriptor
+	global funlist
+	#print var,"^^#^#^#^#^#^^#^\n\n\n\n\n"
 	register = ""
-	if(var in registerDescriptor.values()):
+	
+	if(currentSymbolTable.lookupCurrentParameter(var.split("_")[-1]) != False):
+		reg = "$a" + str(funlist[currentSymbolTable.tableName].index(var.split("_")[-1]) + 1)
+		return reg 
+	elif(var in registerDescriptor.values()):
 		register = addressDescriptor[var]
 	else:
 		if(len(freeRegisters) == 0):
@@ -78,6 +102,28 @@ def data_size(data_type):
 	if(data_type == "char"):
 		return 1
 
+
+def lifeSpan(code,symboltable):
+	print "\n\n\n\n >>>>>>> \n\n\n\n\n"
+	operators = ["+","-","*","/","",">=","<=","==","=","++","--","&&","||","!",">","<"]
+	ind = len(code) - 1
+	while ind >= 0 :
+		if(code[ind][0] in operators ):
+			for element in code[ind][2:]:
+				if(element not in freed_labels):
+					if(isVar(element)):
+						#assigned_reg = addressDescriptor['VAR_'+ symboltable.tableName+"_"+element]
+						#freed_labels.append(element)
+						print "Helloksnmdfbmsbfmsb    "
+						print symboltable.tableName
+						#print element,"             ",assigned_reg
+			#check if the labels are at the right side of the variable
+			#free all the labels if they are present in the right side of the operator
+			#check the first occurrence of the variable
+			#free the register
+		ind -= 1
+
+
 def create_mips(code,symboltable,tempVarcounter):
 	global data_section
 	global text_section
@@ -86,11 +132,19 @@ def create_mips(code,symboltable,tempVarcounter):
 	global tempVarCounter
 	global global_text
 	global if_begin
+	global registerDescriptor
+	global freeRegisters
+	global busyRegisters
+	global parameterDescriptor
+	global addressDescriptor
+	global funlist
+	#lifeSpan(code,symboltable)
 
 	tempVarCounter = tempVarcounter
 	currentSymbolTable = symboltable
 	if_main = 0
 	if_begin = 0
+	data_section += ['\tnewLine:\t.asciiz\t"\\n"']
 	print "----------- Three Address Code -----------\n"
 	for line in code:
 		print line
@@ -258,29 +312,151 @@ def create_mips(code,symboltable,tempVarcounter):
 					addIns("\tori\t"+reg1+",\t"+reg2+",\t"+line[2])			
 
 			elif(line[0]=='FCALL'):
-				if(len(line)==2):
-					#function that doesn't return 
-					pass
-				elif(len(line)==3):
-					#store_val = getReg("FUN_"+line[1])
-					#function that returns value
-					pass
+				if(line[1] == 'get'):
+					print line[-1]
+					addIns("\tli\t$v0,\t5")
+					addIns("\tsyscall")
+					register = getReg(convName(line[-1]))
+					addIns("\tmove\t"+register+",\t$v0")
+					continue
+				if(line[1] == 'put'):
+					addIns("\tli\t$v0,\t1")
+					if(isVar(line[-1])):
+						register = getReg(convName(line[-1]))
+						addIns("\tmove\t$a0,\t"+register)
+					else:
+						addIns("\tli\t$a0,\t"+line[-1])
+					addIns("\tsyscall")
+					addIns("\tli\t$v0,\t4")
+					addIns("la\t$a0,\tnewLine")
+					addIns("\tsyscall")
+					continue
+				counter=0
+				tmp_dict = {}
+				tmp_dict['registerDescriptor'] = registerDescriptor
+				tmp_dict['freeRegister'] = freeRegisters
+				tmp_dict['busyRegisters'] = busyRegisters
+				tmp_dict['parameterDescriptor'] = parameterDescriptor
+				tmp_dict['addressDescriptor'] = addressDescriptor
+				activation_record.append(tmp_dict)
+				for x in registerDescriptor.keys():
+					if registerDescriptor[x] != None:
+						addIns("\taddi\t$sp,\t$sp,\t-4")
+						addIns("\tsw\t"+x+",\t0($sp)")
+				print parameterDescriptor,"_________"
+				for x in parameterDescriptor.keys():
+					if parameterDescriptor[x] != None:
+						addIns("\taddi\t$sp,\t$sp,\t-4")
+						addIns("\tsw\t"+x+",\t0($sp)")
+				if(line[-1]=='PARAMS'):
+					#there are no parameters
+					reset_reg()		
+					addIns("\tjal\t"+line[1])
+					#check whether it returns somthing or not
+					tmp_dict = activation_record.pop()
+					registerDescriptor = tmp_dict['registerDescriptor'] 
+					freeRegisters = tmp_dict['freeRegister']
+					busyRegisters = tmp_dict['busyRegisters']
+					parameterDescriptor = tmp_dict['parameterDescriptor']
+					addressDescriptor = tmp_dict['addressDescriptor']
+					for x in registerDescriptor.keys()[::-1]:
+						if registerDescriptor[x] != None:
+							addIns("\tlw\t"+x+",\t0($sp)")
+							addIns("\taddi\t$sp,\t$sp,\t4")
+
+					for x in parameterDescriptor.keys()[::-1]:
+						if parameterDescriptor[x] != None:
+							addIns("\tlw\t"+x+",\t0($sp)")
+							addIns("\taddi\t$sp,\t$sp,\t4")
+					tmp = currentSymbolTable.lookup(line[1])
+					if (tmp['output']=='void'):
+						pass
+					elif(tmp['output']=='int'):
+						addIns("\tadd\t"+getReg(convName(line[3]))+",\t$zero,\t$v1")
+
+				if(line[-1]!='PARAMS'):
+					#there are parameters
+					index = line.index('PARAMS')+1
+					paras = line[index:]
+					i=1
+
+					for para in paras:
+						if(isVar(para)):
+							addIns("\tadd\t$a"+str(i)+",\t$zero,\t"+getReg(convName(para)))
+						else:
+							addIns("\taddi\t$a"+str(i)+",\t$zero,\t"+para)
+						i=i+1
+					reset_reg()		
+					addIns("\tjal\t"+line[1])
+					#check whether it returns something or not
+					tmp_dict = activation_record.pop()
+					registerDescriptor = tmp_dict['registerDescriptor'] 
+					freeRegisters = tmp_dict['freeRegister']
+					busyRegisters = tmp_dict['busyRegisters']
+					parameterDescriptor = tmp_dict['parameterDescriptor']
+					addressDescriptor = tmp_dict['addressDescriptor']
+					for x in parameterDescriptor.keys()[::-1]:
+						if parameterDescriptor[x] != None:
+							addIns("\tlw\t"+x+",\t0($sp)")
+							addIns("\taddi\t$sp,\t$sp,\t4")
+					
+					for x in registerDescriptor.keys()[::-1]:
+						if registerDescriptor[x] != None:
+							addIns("\tlw\t"+x+",\t0($sp)")
+							addIns("\taddi\t$sp,\t$sp,\t4")
+
+					tmp = currentSymbolTable.lookup(line[1])
+					if (tmp['output']=='void'):
+						pass
+					elif(tmp['output']=='int'):
+						addIns("\tadd\t"+getReg(convName(line[3]))+",\t$zero,\t$v1")
+			elif(line[0]=='RETURN'):
+				if(line[1].isdigit()):
+					addIns("\taddi\t$v1,\t$zero,\t"+line[1])
+					addIns("\tlw\t$ra,\t0($sp)")
+					addIns("\taddi\t$sp,\t$sp,\t4")
+					addIns("\tjr\t$ra")
+				else:
+					addIns("\tadd\t$v1,\t$zero,\t"+getReg(convName(line[1])))
+					addIns("\tlw\t$ra,\t0($sp)")
+					addIns("\taddi\t$sp,\t$sp,\t4")
+					addIns("\tjr\t$ra")
+
 			elif(line[0] == 'BEGINFUCTION'):
 				if_begin = 1
 				symbolTableStack.append(currentSymbolTable)
 				currentSymbolTable = currentSymbolTable.childList[line[2]]
+				addIns(line[2]+':')
 				if(line[2]=="main"):
 					if_main =1
+					reset_reg() 
 				else:
 					if_main=0
+					paramtrs=line[5:][::2]
+					funlist[currentSymbolTable.tableName] = line[5:][::2]
+					count=1
+					i=1
+					for para in paramtrs:
+						if(isVar(para)):
+							parameterDescriptor["$a"+str(i)] = 'VAR_'+currentSymbolTable.tableName+"_"+para 
+							#addIns("\tadd\t$a"+str(i)+",\t$zero,\t"+getReg(convName(para)))
+							addIns("\tadd\t$t"+str(i-1)+",\t$zero,\t"+"$a"+str(i))#'VAR_'+currentSymbolTable.tableName+"_"+para)
+							freeRegisters.remove("$t"+str(i-1))
+							registerDescriptor["$t"+str(i-1)] = "$a"+str(i)# 'VAR_'+currentSymbolTable.tableName+"_"+para
+							addressDescriptor["$a"+str(i)] = "$t"+str(i-1)
+							busyRegisters.append("$t"+str(i-1))
+						else:
+							pass
+							#addIns("\taddi\t$a"+str(i)+",\t$zero,\t"+para)
+						i=i+1
 					addIns("\taddi\t$sp,\t$sp,\t-4")
 					addIns("\tsw\t$ra,\t0($sp)")
-				addIns(line[2]+':')
+				
 				pass
 			elif(line[0] == 'ENDFUNCTION'):
 				currentSymbolTable = symbolTableStack.pop()
 				if(if_main==1):
-					if_main=1
+					if_main=0
 					addIns("\tli\t$v0,\t10")
 					addIns("\tsyscall")
 				else:

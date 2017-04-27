@@ -35,7 +35,7 @@ functions = []
 
 global lastChild
 
-
+varDecList = []
 
 def type_cast_assign(s1,s2):
 	data_types=["short","float","double","int","long","long long","char"]
@@ -123,8 +123,9 @@ def p_primary_expression2(p):
 	#p[0]=("primary_expression",)+tuple(p[-len(p)+1:])
 	p[0] = {'value':p[1],'code':[]}
 	if(currentSymbolTable.lookup(p[1]) == False):
-		print "ERROR at line number ", p.lineno(1) ,": Variable ",p[1]," not declared: "
-		sys.exit()
+		if(p[1] not in varDecList):
+			print "ERROR at line number ", p.lineno(1) ,": Variable ",p[1]," not declared: "
+			sys.exit()
 
 def p_constant(p):
 	'''constant : I_CONSTANT
@@ -176,17 +177,24 @@ def p_postfix_expression(p):
 	if(len(p) == 2):
 		p[0] = p[1]
 	elif(len(p) == 4):
-		#if(p[1]['value'] ret type != void)
-		#newVar = createNewTempVar()
-		#p[0] = {'code':[['FCALL',p[1]['value'],newVar]] + [['PARAMS']], 'value':newVar }
+		#tmp = currentSymbolTable.lookup(p[1]['value'])
+		#if(tmp['output']=='void'):
+		#	p[0] = {'code':[['FCALL',p[1]['value'], 'PARAMS']], 'value':p[1]['value'] }
 		#else:
-		p[0] = {'code':[['FCALL',p[1]['value']]] + [['PARAMS']], 'value':p[1]['value'] }
+		#	newVar = createNewTempVar()
+		#	p[0] = {'code':[['FCALL',p[1]['value'],'RETV',newVar,'PARAMS']], 'value':newVar }
+		newVar = createNewTempVar()
+		p[0] = {'code':[['FCALL',p[1]['value'],'RETV',newVar,'PARAMS']], 'value':newVar }
 	elif(len(p) == 5):
-		#if(p[1]['value'] ret type != void)
-		#newVar = createNewTempVar()
-		#p[0] = {'code':p[3]['code']+ [['FCALL',p[1]['value'],newVar]] + [['PARAMS'] + p[3]['value']], 'value':newVar}
+		#tmp = currentSymbolTable.lookup(p[1]['value'])
+		#print tmp
+		#if(tmp['output']=='void'):
+		#	p[0] = {'code':p[3]['code']+ [['FCALL',p[1]['value'],'PARAMS'] + p[3]['value']], 'value':p[1]['value'] }
 		#else:
-		p[0] = {'code':p[3]['code']+ [['FCALL',p[1]['value']]] + [['PARAMS'] + p[3]['value']], 'value':p[1]['value'] }
+		#	newVar = createNewTempVar()
+		#	p[0] = {'code':p[3]['code']+ [['FCALL',p[1]['value'],'RETV',newVar,'PARAMS'] + p[3]['value']], 'value':newVar }
+		newVar = createNewTempVar()
+		p[0] = {'code':p[3]['code']+ [['FCALL',p[1]['value'],'RETV',newVar,'PARAMS'] + p[3]['value']], 'value':newVar }
 	else:
 		pass
 
@@ -718,6 +726,9 @@ def p_declarator(p):
 	#p[0]=("declarator",)+tuple(p[-len(p)+1:])
 	if(len(p) == 2):
 		p[0] = p[1]
+		global varDecList
+		if(not p[1].has_key('value')):
+			varDecList.append(p[1]['code'][0])
 
 def p_direct_declarator(p):
 	'''direct_declarator : IDENTIFIER
@@ -1138,7 +1149,7 @@ def p_function_definition(p):
 		if(p[2].has_key('value')):
 			p[0]['code'] = [['BEGINFUCTION',p[1]['value']] + [p[2]['value']]] + p[3]['code'] + [['ENDFUNCTION']]
 			lastChild.tableName = p[2]['value']
-			lastChild.parameterTable[0].tableName = "PATAMETER" + p[2]['value']
+			lastChild.parameterTable[0].tableName = "PARAMETER" + p[2]['value']
 			lastChild.addName()
 			lastChild.parameterTable[0].addName()
 			if(currentSymbolTable.insert(['FN',p[2]['value'],['void'],p[1]['value']]) == False):
@@ -1149,7 +1160,7 @@ def p_function_definition(p):
 		else:
 			p[0]['code'] = [['BEGINFUCTION',p[1]['value']] + p[2]['code']] + p[3]['code'] + [['ENDFUNCTION']]
 			lastChild.tableName = p[2]['code'][0]
-			lastChild.parameterTable[0].tableName = "PATAMETER" + p[2]['code'][0]
+			lastChild.parameterTable[0].tableName = "PARAMETER" + p[2]['code'][0]
 			lastChild.addName()
 			lastChild.parameterTable[0].addName()
 			inp = []
@@ -1192,10 +1203,12 @@ def p_righttbrace(p):
 	global currentSymbolTable
 	global lastChild
 	global parameterSymbolTable
-	
+	global varDecList
+
 	lastChild = currentSymbolTable
 	currentSymbolTable = currentSymbolTable.parent
-	
+	varDecList = []
+
 def p_error(p):
     global flag_for_error
     flag_for_error = 1
@@ -1223,9 +1236,9 @@ if __name__ == "__main__":
 		#for l in tree['code']:
 		#	print l
 		#print tree['code'],"\n"
-		dump = tree['code'].pop()
-		tree['code'].append(['PRINTINT','result'])
-		tree['code'].append(['ENDFUNCTION'])
+		#dump = tree['code'].pop()
+		#tree['code'].append(['PRINTINT','result'])
+		#tree['code'].append(['ENDFUNCTION'])
 		create_mips(tree['code'],currentSymbolTable,tempVarCounter)
 		os.system(" spim -file code.asm ")
 		#if tree is not None and flag_for_error == 0:
