@@ -36,6 +36,8 @@ functions = []
 global lastChild
 
 varDecList = []
+varDecListStack = []
+declType = 0		#0 default 1 for var declaraion -1 for func declaration
 
 def type_cast_assign(s1,s2):
 	data_types=["short","float","double","int","long","long long","char"]
@@ -122,6 +124,7 @@ def p_primary_expression2(p):
 	#print "primary_expression"
 	#p[0]=("primary_expression",)+tuple(p[-len(p)+1:])
 	p[0] = {'value':p[1],'code':[]}
+	global varDecList
 	if(currentSymbolTable.lookup(p[1]) == False):
 		if(p[1] not in varDecList):
 			print "ERROR at line number ", p.lineno(1) ,": Variable ",p[1]," not declared: "
@@ -535,6 +538,8 @@ def p_declaration(p):
 	#print "declaration"
 	#p[0]=("declaration",)+tuple(p[-len(p)+1:])
 	global arrayDeclFlag
+	global varDecList
+	global declType
 	if(arrayDeclFlag == 0):
 		if(len(p) == 4):
 			p[0] = {'code':[]}
@@ -544,9 +549,11 @@ def p_declaration(p):
 				p[0]['code'] += [beg + [x]]
 				p[0]['code'] += p[2]['code'][j]
 				j = j + 1
-				if(currentSymbolTable.insert(['ID',x,'void',p[1]['value'],0,[]]) == False):
-					print "ERROR at line number ", p.lineno(1) ,' : Variable ',x,' already declared '
-					sys.exit()
+				varDecList.append(x)
+				if(declType != -1):
+					if(currentSymbolTable.insert(['ID',x,'void',p[1]['value'],0,[]]) == False):
+						print "ERROR at line number ", p.lineno(1) ,' : Variable ',x,' already declared '
+						sys.exit()
 		else:
 			p[0] = {'code':[['VARDECLARATION'] + [p[1]['value']]]}
 	else:
@@ -555,6 +562,7 @@ def p_declaration(p):
 		if(currentSymbolTable.insert(['ID',p[2]['value'][0],'void',p[1]['value'],int(p[2]['value'][1]),list(map(int, p[2]['value'][2:]))]) == False):
 			print "ERROR at line number ", p.lineno(1) ,' : Variable ',x,' already declared '
 			sys.exit()
+	declType = 0
 
 def p_declaration_specifiers(p):
 	'''declaration_specifiers : storage_class_specifier declaration_specifiers
@@ -580,7 +588,10 @@ def p_init_declarator_list(p):
 	global arrayDeclFlag
 	if(arrayDeclFlag == 0):
 		if(len(p) == 2):
-			p[0] = {'code':[p[1]['code']],'value':[p[1]['value']]}
+			if(p[1].has_key('value')):
+				p[0] = {'code':[p[1]['code']],'value':[p[1]['value']]}
+			else:
+				p[0] = {'code':[p[1]['code']],'value':[]}
 		else:
 			p[0] = {'code':p[1]['code'] + [p[3]['code']],'value':p[1]['value'] + [p[3]['value']]}
 	else:
@@ -737,14 +748,19 @@ def p_direct_declarator(p):
 							| direct_declarator LPAREN identifier_list RPAREN '''
 	#print "direct_declarator"
 	#p[0]=("direct_declarator",)+tuple(p[-len(p)+1:])
+	global declType
 	if(len(p) == 2):
 		p[0] = {'value':p[1],'code':[]}
+		declType = 1
 	elif(len(p) == 4):
 		p[0] = p[1]
+		declType = -1
 	elif(len(p) == 5):
 		p[0] = {'code':[]}
 		p[0]['code'] += [p[1]['value']] + ['ACTPARAMS'] + p[3]['code']
+		declType = -1
 	else:
+		declType = -1
 		pass
 
 def p_direct_declarator2(p):
@@ -752,6 +768,8 @@ def p_direct_declarator2(p):
 							| IDENTIFIER LBRACKET arrayindex RBRACKET LBRACKET arrayindex RBRACKET '''
 	#print "direct_declarator"
 	global arrayDeclFlag
+	global declType
+	declType = 1
 	arrayDeclFlag = 1
 	if(len(p) == 5):
 		p[0] = {'code': [],'value':[p[1],'1',p[3]['value']] }
@@ -825,7 +843,7 @@ def p_parameter_declaration(p):
 	else:
 		p[0] = {'code':[p[1]['value']] + [p[2]['value']]}
 		if (parameterSymbolTable.insert(['ID',p[2]['value'],'void',p[1]['value'],0,[]]) == False):
-			print "ERROR at line number ", p.lineno(1) ,' : Variable ',x,' already declared '
+			print "ERROR at line number ", p.lineno(1) ,' : Variable ',p[2]['value'],' already declared '
 			sys.exit()
 
 def p_identifier_list(p):
@@ -1189,11 +1207,15 @@ def p_leftbrace(p):
 	#print "-----Making NewSymbolTable---------"
 	global currentSymbolTable
 	global parameterSymbolTable
-	
+	global varDecList
+	global varDecListStack
+
 	currentSymbolTable = SymbolTable(currentSymbolTable)
 	currentSymbolTable.parameterTable.append(parameterSymbolTable)
 	parameterSymbolTable.parent = currentSymbolTable
 	parameterSymbolTable = SymbolTable(-1)
+	varDecListStack.append(varDecList)
+
 
 def p_righttbrace(p):
 	''' right_brace : RBRACE
@@ -1207,7 +1229,8 @@ def p_righttbrace(p):
 
 	lastChild = currentSymbolTable
 	currentSymbolTable = currentSymbolTable.parent
-	varDecList = []
+	
+	varDecList = varDecListStack.pop()
 
 def p_error(p):
     global flag_for_error
@@ -1239,6 +1262,11 @@ if __name__ == "__main__":
 		#dump = tree['code'].pop()
 		#tree['code'].append(['PRINTINT','result'])
 		#tree['code'].append(['ENDFUNCTION'])
+
+		f = open('3ac.txt', 'wb')
+		for line in tree['code']:
+			f.write("%s\n" % line)
+		f.close()
 		create_mips(tree['code'],currentSymbolTable,tempVarCounter)
 		os.system(" spim -file code.asm ")
 		#if tree is not None and flag_for_error == 0:

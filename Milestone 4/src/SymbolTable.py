@@ -83,6 +83,9 @@ class SymbolTable:
 		while( not( table == -1 )):
 			if(name in table.symbols):
 				return table.entries[table.symbols.index(name)]
+			for pTable in table.parameterTable :
+				if(name in pTable.symbols):
+					return pTable.entries[pTable.symbols.index(name)]
 			table = table.parent
 		for table in self.parameterTable :
 			if(name in table.symbols):

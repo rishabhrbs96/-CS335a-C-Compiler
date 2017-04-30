@@ -12,8 +12,8 @@ freeRegisters = ['$s4','$s3','$s2','$s1','$s0','$t9', '$t8', '$t7', '$t6', '$t5'
 parameterDescriptor={ '$a1' : None, '$a2' : None, '$a3' : None}
 busyRegisters = []
 funlist = {}
-
-freed_labels = []
+lru_list = []
+freed_labels = {}
 
 declaredVars = []
 global currentSymbolTable
@@ -60,6 +60,8 @@ def isVar(var):
 	#		return True
 	#	return False
 	#return True
+	if(var[0] == '-'):
+		return False
 	return (not var.isdigit())
 
 def getReg(var):
@@ -71,18 +73,37 @@ def getReg(var):
 	global declaredVars
 	global parameterDescriptor
 	global funlist
-	#print var,"^^#^#^#^#^#^^#^\n\n\n\n\n"
-	register = ""
+	global lru_list
 	
-	if(currentSymbolTable.lookupCurrentParameter(var.split("_")[-1]) != False):
-		reg = "$a" + str(funlist[currentSymbolTable.tableName].index(var.split("_")[-1]) + 1)
-		return reg 
+	register = ""
+	if(var.split("_")[1] == 'GLOBALTABLE'):
+		of = currentSymbolTable.lookup(var.split("_")[-1])['offset']
+		if len(freeRegisters):
+			register = freeRegisters.pop()
+		#register = freeRegisters.pop()
+		addIns("\taddi\t"+register+",\t$zero,\t"+str(of))
+		addIns("\tlw\t"+register+",\tVAR_global"+"("+register+")")
 	elif(var in registerDescriptor.values()):
 		register = addressDescriptor[var]
+	elif(currentSymbolTable.lookupCurrentParameter(var.split("_")[-1]) != False):
+		reg = "$a" + str(funlist[currentSymbolTable.tableName].index(var.split("_")[-1]) + 1)
+		return reg 
 	else:
 		if(len(freeRegisters) == 0):
-
-			pass		
+			for x in lru_list:
+				onhold_reg = x        #assigned register
+				assigned_var = registerDescriptor[onhold_reg]      # checked the previously alloted variable
+				c_var = assigned_var.split("_")       #c code name of the variable
+				name = c_var[-1] 
+				if(name.isdigit() == False):              #if it is not a label
+					addIns("\tsw\t"+onhold_reg+",\t"+assigned_var)          #store the register value in the memory
+					registerDescriptor[onhold_reg] = var         # assign the register to the alloted variable
+					tmp_var = addressdescriptor.pop(assigned_var,None)        #delete the entry from the addressDescriptor
+					addressdescriptor[var] = onhold_reg          # add entry to the address Descriptor
+					break
+			register = onhold_reg
+			if register in lru_list:
+				lru_list.remove(register)			
 		else:
 			register = freeRegisters.pop()
 			addressDescriptor[var] = register
@@ -90,6 +111,7 @@ def getReg(var):
 			registerDescriptor[register] = var
 			if(var in declaredVars):
 				addIns("\tlw\t"+register+",\t"+var)
+	lru_list.append(register)
 	return register
 
 def data_size(data_type):
@@ -103,26 +125,28 @@ def data_size(data_type):
 		return 1
 
 
-def lifeSpan(code,symboltable):
-	print "\n\n\n\n >>>>>>> \n\n\n\n\n"
+def lifeSpan(code):
+	#print "\n\n\n\n >>>>>>> \n\n\n\n\n"
+	global freed_labels
 	operators = ["+","-","*","/","",">=","<=","==","=","++","--","&&","||","!",">","<"]
-	ind = len(code) - 1
-	while ind >= 0 :
-		if(code[ind][0] in operators ):
-			for element in code[ind][2:]:
-				if(element not in freed_labels):
-					if(isVar(element)):
-						#assigned_reg = addressDescriptor['VAR_'+ symboltable.tableName+"_"+element]
-						#freed_labels.append(element)
-						print "Helloksnmdfbmsbfmsb    "
-						print symboltable.tableName
-						#print element,"             ",assigned_reg
-			#check if the labels are at the right side of the variable
-			#free all the labels if they are present in the right side of the operator
-			#check the first occurrence of the variable
-			#free the register
-		ind -= 1
+	ind = len(code) - 1                  # get the line of code
+	while ind >= 0 :                     # for each line backwards
+		if(code[ind][0] in operators ):                #  if it is a operator
+			for element in code[ind][2:]:             # for each label in the right of th operator
+				if(isVar(element) and element[0]=="t"):           # if the label is t_12
+					if(element not in freed_labels.keys()):         # if the label has not been freed yet
+						freed_labels[element] = ind               # add key to the dictionary 
+		elif(code[ind][0]=='IF'):
+			element = code[ind][1]
+			if(isVar(element) and element[0]=="t"):
+				if(element not in freed_labels.keys()):         # if the label has not been freed yet
+						freed_labels[element] = ind
+			element=code[ind][3]
+			if(isVar(element) and element[0]=="t"):
+				if(element not in freed_labels.keys()):         # if the label has not been freed yet
+						freed_labels[element] = ind
 
+		ind -= 1
 
 def create_mips(code,symboltable,tempVarcounter):
 	global data_section
@@ -138,139 +162,352 @@ def create_mips(code,symboltable,tempVarcounter):
 	global parameterDescriptor
 	global addressDescriptor
 	global funlist
+	global freed_labels
 	#lifeSpan(code,symboltable)
 
 	tempVarCounter = tempVarcounter
 	currentSymbolTable = symboltable
 	if_main = 0
 	if_begin = 0
-	data_section += ['\tnewLine:\t.asciiz\t"\\n"']
-	print "----------- Three Address Code -----------\n"
+	ind=0
+	data_section += ["\tVAR_global:\t.space\t"+str(currentSymbolTable.offset_count)]
 	for line in code:
-		print line
+		if(code[ind][0]=='GETARRAY' and (ind+1 < len(code))):
+			if((code[ind+1][0]=='FCALL' and code[ind+1][1]=='get')):
+				tmp_line = line
+				tmp_line[0] = 'PUTARRAY'
+				code.insert(ind+2,tmp_line)
+		ind += 1
+
+	lifeSpan(code)
+	#print freed_labels
+
+	print "----------- Three Address Code -----------\n"
+	ind=0
+	for line in code:
+		print line,"\t"
 		if(line != []):
 			if(line[0] == 'ARRDECLARATION'):
-				if(int(line[3])==2):
-					tot_mem=(int(line[4])*int(line[5]))*data_size(line[1])
-					#check the data type here of the array
-					data_section += ["\tVAR_"+line[2]+":\t.space\t"+str(tot_mem)]
-				if(int(line[3])==1):
-					tot_mem =(int(line[4]))*data_size(line[1])
-					data_section += ["\tVAR_"+line[2]+":\t.space\t"+str(tot_mem)]
-					#check the data type here of the array
+				tmp = currentSymbolTable.lookup(line[2])
+				if(tmp['scope'] != 'GLOBALTABLE'):
+					if(int(line[3])==2):
+						tot_mem=(int(line[4])*int(line[5]))*data_size(line[1])
+						#check the data type here of the array
+						data_section += ["\tVAR_"+line[2]+":\t.space\t"+str(tot_mem)]
+					if(int(line[3])==1):
+						tot_mem =(int(line[4]))*data_size(line[1])
+						data_section += ["\tVAR_"+line[2]+":\t.space\t"+str(tot_mem)]
+						#check the data type here of the array
 			elif(line[0] == 'GETARRAY'):
-				if(line[3] == '1'):
-					if(line[4].isdigit()):
-						offset=4*int(line[4])
-						
-						offset_register = getReg(convName(line[1]))
-						addIns("\taddi\t"+offset_register+",\t$zero,\t"+str(offset))
-						addIns("\tlw\t"+offset_register+",\tVAR_"+line[2]+"("+offset_register+")")
-						
-					elif(isVar(line[4])):
-						register=getReg(convName(line[4]))
-						offset_register = getReg(convName(line[1]))
-						addIns("\tmul\t"+offset_register+",\t"+register+",\t4")
-						addIns("\tlw\t"+offset_register+",\tVAR_"+line[2]+"("+offset_register+")")
-						
-				elif(line[3] == '2'):  #change the the offset as the product of current row and the total number of columns 
-					#need the dimension of the 2-d array
-					arrdet = currentSymbolTable.lookup(line[2])
-					col = arrdet['dimension'][1]
-
-					if(line[4].isdigit() and line[5].isdigit()):
-						#offset = data_size('int')*int(line[4])*int(line[5])
-						#offset_register = freeRegisters.pop()
-						offset = (int(line[4])*col + int(line[5]))*data_size(arrdet['output'])
-						offset_register = getReg(convName(line[1]))
-						addIns("\taddi\t"+offset_register+",\t$zero,\t"+str(offset))
-						addIns("\tlw\t"+offset_register+",\tVAR_"+line[2]+"("+offset_register+")")
-						
-					elif(isVar(line[4]) and line[5].isdigit()):
-						reg_var= getReg(convName(line[4]))
-						offset_register = getReg(convName(line[1]))
-						addIns("\tmul\t"+offset_register+",\t"+reg_var+",\t"+str(col))
-						addIns("\taddi\t"+offset_register+",\t"+offset_register+",\t"+line[5])
-						addIns("\tmul\t"+offset_register+",\t"+offset_register+",\t"+str(data_size(arrdet['output'])))
-						addIns("\tlw\t"+offset_register+",\tVAR_"+line[2]+"("+offset_register+")")
-
-					elif(line[4].isdigit() and isVar(line[5])):
-						reg_var= getReg(convName(line[5]))
-						offset_register = getReg(convName(line[1]))
-						addIns("\taddi\t"+offset_register+",\t$zero,\t"+str(int(line[4])*col))
-						addIns("\tadd\t"+offset_register+",\t"+offset_register+",\t"+reg_var)
-						addIns("\tmul\t"+offset_register+",\t"+offset_register+",\t"+str(data_size('int')))
-						addIns("\tlw\t"+offset_register+",\tVAR_"+line[2]+"("+offset_register+")")
-					
-					elif(isVar(line[4]) and isVar(line[5])):
-						reg_var1 = getReg(convName(line[4]))
-						reg_var2 = getReg(convName(line[5]))
-						offset_register = getReg(convName(line[1]))
-						addIns("\tmul\t"+offset_register+",\t"+reg_var1+",\t"+str(col))
-						addIns("\tadd\t"+offset_register+",\t"+offset_register+",\t"+reg_var2)
-						addIns("\tmul\t"+offset_register+",\t"+offset_register+",\t"+str(data_size('int')))
-						addIns("\tlw\t"+offset_register+",\tVAR_"+line[2]+"("+offset_register+")")
-
-			elif(line[0]=='PUTARRAY'):
-				if(line[3]=='1'):
-					if(line[4].isdigit()):
-						offset = data_size('int')*int(line[4])
-						value_register = getReg(convName(line[1]))
-						offset_register = freeRegisters.pop()
-						addIns("\taddi\t"+offset_register+",\t$zero,\t"+str(offset))
-						addIns("\tsw\t"+value_register+",\tVAR_"+line[2]+"("+offset_register+")")
-						freeRegisters.append(offset_register)
-					
-					elif(isVar(line[4])):
-						index_register = getReg(convName(line[4]))
-						value_register = getReg(convName(line[1]))
-						offset_register = freeRegisters.pop()
-						addIns("\tmul\t"+offset_register+",\t"+index_register+",\t"+str(data_size('int')))
-						addIns("\tsw\t"+value_register+",\tVAR_"+line[2]+"("+offset_register+")")
-						freeRegisters.append(offset_register)
-				
-				elif(line[3]=='2'):   #change the offset as the product of the current row and total numnber of colums 
+				tmp = currentSymbolTable.lookup(line[2])
+				if(tmp['scope'] != 'GLOBALTABLE'):
+					if(line[3] == '1'):
+						if(line[4].isdigit()):
+							offset=4*int(line[4])
+							
+							offset_register = getReg(convName(line[1]))
+							addIns("\taddi\t"+offset_register+",\t$zero,\t"+str(offset))
+							addIns("\tlw\t"+offset_register+",\tVAR_"+line[2]+"("+offset_register+")")
+							
+						elif(isVar(line[4])):
+							register=getReg(convName(line[4]))
+							offset_register = getReg(convName(line[1]))
+							addIns("\tmul\t"+offset_register+",\t"+register+",\t4")
+							addIns("\tlw\t"+offset_register+",\tVAR_"+line[2]+"("+offset_register+")")
+							
+					elif(line[3] == '2'):  #change the the offset as the product of current row and the total number of columns 
+						#need the dimension of the 2-d array
 						arrdet = currentSymbolTable.lookup(line[2])
 						col = arrdet['dimension'][1]
+
 						if(line[4].isdigit() and line[5].isdigit()):
-							#offset=data_size('int')*int(line[4])*int(line[5])
+							#offset = data_size('int')*int(line[4])*int(line[5])
+							#offset_register = freeRegisters.pop()
 							offset = (int(line[4])*col + int(line[5]))*data_size(arrdet['output'])
+							offset_register = getReg(convName(line[1]))
+							addIns("\taddi\t"+offset_register+",\t$zero,\t"+str(offset))
+							addIns("\tlw\t"+offset_register+",\tVAR_"+line[2]+"("+offset_register+")")
+							
+						elif(isVar(line[4]) and line[5].isdigit()):
+							reg_var= getReg(convName(line[4]))
+							offset_register = getReg(convName(line[1]))
+							addIns("\tmul\t"+offset_register+",\t"+reg_var+",\t"+str(col))
+							addIns("\taddi\t"+offset_register+",\t"+offset_register+",\t"+line[5])
+							addIns("\tmul\t"+offset_register+",\t"+offset_register+",\t"+str(data_size(arrdet['output'])))
+							addIns("\tlw\t"+offset_register+",\tVAR_"+line[2]+"("+offset_register+")")
+
+						elif(line[4].isdigit() and isVar(line[5])):
+							reg_var= getReg(convName(line[5]))
+							offset_register = getReg(convName(line[1]))
+							addIns("\taddi\t"+offset_register+",\t$zero,\t"+str(int(line[4])*col))
+							addIns("\tadd\t"+offset_register+",\t"+offset_register+",\t"+reg_var)
+							addIns("\tmul\t"+offset_register+",\t"+offset_register+",\t"+str(data_size('int')))
+							addIns("\tlw\t"+offset_register+",\tVAR_"+line[2]+"("+offset_register+")")
+						
+						elif(isVar(line[4]) and isVar(line[5])):
+							reg_var1 = getReg(convName(line[4]))
+							reg_var2 = getReg(convName(line[5]))
+							offset_register = getReg(convName(line[1]))
+							addIns("\tmul\t"+offset_register+",\t"+reg_var1+",\t"+str(col))
+							addIns("\tadd\t"+offset_register+",\t"+offset_register+",\t"+reg_var2)
+							addIns("\tmul\t"+offset_register+",\t"+offset_register+",\t"+str(data_size('int')))
+							addIns("\tlw\t"+offset_register+",\tVAR_"+line[2]+"("+offset_register+")")
+				else:
+					print tmp['offset']
+					if(line[3] == '1'):
+						if(line[4].isdigit()):
+							offset=4*int(line[4])+tmp['offset']
+							
+							offset_register = getReg(convName(line[1]))
+							addIns("\taddi\t"+offset_register+",\t$zero,\t"+str(offset))
+							addIns("\tlw\t"+offset_register+",\tVAR_global"+"("+offset_register+")")
+							
+						elif(isVar(line[4])):
+							register=getReg(convName(line[4]))
+							offset_register = getReg(convName(line[1]))
+
+							addIns("\tmul\t"+offset_register+",\t"+register+",\t4")
+							addIns("\taddi\t"+offset_register+",\t"+offset_register+",\t"+str(tmp['offset']))
+							addIns("\tlw\t"+offset_register+",\tVAR_global"+"("+offset_register+")")
+							
+					elif(line[3] == '2'):  #change the the offset as the product of current row and the total number of columns 
+						#need the dimension of the 2-d array
+						arrdet = currentSymbolTable.lookup(line[2])
+						col = arrdet['dimension'][1]
+
+						if(line[4].isdigit() and line[5].isdigit()):
+							#offset = data_size('int')*int(line[4])*int(line[5])
+							#offset_register = freeRegisters.pop()
+							offset = (int(line[4])*col + int(line[5]))*data_size(arrdet['output'])+tmp['offset']
+							offset_register = getReg(convName(line[1]))
+							addIns("\taddi\t"+offset_register+",\t$zero,\t"+str(offset))
+							addIns("\tlw\t"+offset_register+",\tVAR_global"+"("+offset_register+")")
+							
+						elif(isVar(line[4]) and line[5].isdigit()):
+							reg_var= getReg(convName(line[4]))
+							offset_register = getReg(convName(line[1]))
+							addIns("\tmul\t"+offset_register+",\t"+reg_var+",\t"+str(col))
+							addIns("\taddi\t"+offset_register+",\t"+offset_register+",\t"+line[5])
+							addIns("\tmul\t"+offset_register+",\t"+offset_register+",\t"+str(data_size(arrdet['output'])))
+							addIns("\taddi\t"+offset_register+",\t"+offset_register+",\t"+str(tmp['offset']))
+							addIns("\tlw\t"+offset_register+",\tVAR_global"+"("+offset_register+")")
+
+						elif(line[4].isdigit() and isVar(line[5])):
+							reg_var= getReg(convName(line[5]))
+							offset_register = getReg(convName(line[1]))
+							addIns("\taddi\t"+offset_register+",\t$zero,\t"+str(int(line[4])*col))
+							addIns("\tadd\t"+offset_register+",\t"+offset_register+",\t"+reg_var)
+							addIns("\tmul\t"+offset_register+",\t"+offset_register+",\t"+str(data_size('int')))
+							addIns("\taddi\t"+offset_register+",\t"+offset_register+",\t"+str(tmp['offset']))
+							addIns("\tlw\t"+offset_register+",\tVAR_global"+"("+offset_register+")")
+						
+						elif(isVar(line[4]) and isVar(line[5])):
+							reg_var1 = getReg(convName(line[4]))
+							reg_var2 = getReg(convName(line[5]))
+							offset_register = getReg(convName(line[1]))
+							addIns("\tmul\t"+offset_register+",\t"+reg_var1+",\t"+str(col))
+							addIns("\tadd\t"+offset_register+",\t"+offset_register+",\t"+reg_var2)
+							addIns("\tmul\t"+offset_register+",\t"+offset_register+",\t"+str(data_size('int')))
+							addIns("\taddi\t"+offset_register+",\t"+offset_register+",\t"+str(tmp['offset']))
+							addIns("\tlw\t"+offset_register+",\tVAR_global"+"("+offset_register+")")
+
+
+			elif(line[0]=='PUTARRAY'):
+				tmp = currentSymbolTable.lookup(line[2])
+				if(tmp['scope'] != 'GLOBALTABLE'):
+					if(line[3]=='1'):
+						if(line[4].isdigit()):
+							offset = data_size('int')*int(line[4])
 							value_register = getReg(convName(line[1]))
-							offset_register = freeRegisters.pop()
+							if len(freeRegisters):
+								offset_register = freeRegisters.pop()
 							addIns("\taddi\t"+offset_register+",\t$zero,\t"+str(offset))
 							addIns("\tsw\t"+value_register+",\tVAR_"+line[2]+"("+offset_register+")")
 							freeRegisters.append(offset_register)
-
-						if(line[4].isdigit() and isVar(line[5])):
-							index_register = getReg(convName(line[5]))
-							offset_register = freeRegisters.pop()
-							addIns("\taddi\t"+offset_register+",\t$zero,\t"+str(int(line[4])*col))
-							addIns("\tadd\t"+offset_register+",\t"+offset_register+",\t"+index_register)
-							addIns("\tmul\t"+offset_register+",\t"+offset_register+",\t"+str(data_size(arrdet['output'])))
-							value_register = getReg(convName(line[1]))
-							addIns("\tsw\t"+value_register+",\tVAR_"+line[2]+"("+offset_register+")")
-							freeRegisters.append(offset_register)
+							freeRegisters.append(value_register)
+							x = addressDescriptor.pop(convName(line[1]) , None)
+							if value_register in busyRegisters:
+								busyRegisters.remove(value_register)
+							registerDescriptor[value_register] = None
 						
-						if(isVar(line[4]) and line[5].isdigit()):
+						elif(isVar(line[4])):
 							index_register = getReg(convName(line[4]))
-							offset_register = freeRegisters.pop()
-							addIns("\tmul\t"+offset_register+",\t"+index_register+",\t"+str(col))
-							addIns("\taddi\t"+offset_register+",\t"+offset_register+",\t"+line[5])
-							addIns("\tmul\t"+offset_register+",\t"+offset_register+",\t"+str(data_size(arrdet['output'])))
 							value_register = getReg(convName(line[1]))
+							if len(freeRegisters):
+								offset_register = freeRegisters.pop()
+							addIns("\tmul\t"+offset_register+",\t"+index_register+",\t"+str(data_size('int')))
 							addIns("\tsw\t"+value_register+",\tVAR_"+line[2]+"("+offset_register+")")
 							freeRegisters.append(offset_register)
+							freeRegisters.append(value_register)
+							x = addressDescriptor.pop(convName(line[1]) , None)
+							if value_register in busyRegisters:
+								busyRegisters.remove(value_register)
+							registerDescriptor[value_register] = None
+
+					elif(line[3]=='2'):   #change the offset as the product of the current row and total numnber of colums 
+							arrdet = currentSymbolTable.lookup(line[2])
+							col = arrdet['dimension'][1]
+							if(line[4].isdigit() and line[5].isdigit()):
+								#offset=data_size('int')*int(line[4])*int(line[5])
+								offset = (int(line[4])*col + int(line[5]))*data_size(arrdet['output'])
+								value_register = getReg(convName(line[1]))
+								if len(freeRegisters):
+									offset_register = freeRegisters.pop()
+								addIns("\taddi\t"+offset_register+",\t$zero,\t"+str(offset))
+								addIns("\tsw\t"+value_register+",\tVAR_"+line[2]+"("+offset_register+")")
+								freeRegisters.append(offset_register)
+								freeRegisters.append(value_register)
+								x = addressDescriptor.pop(convName(line[1]) , None)
+								if value_register in busyRegisters:
+									busyRegisters.remove(value_register)
+								registerDescriptor[value_register] = None
+
+							if(line[4].isdigit() and isVar(line[5])):
+								index_register = getReg(convName(line[5]))
+								if len(freeRegisters):
+									offset_register = freeRegisters.pop()
+								addIns("\taddi\t"+offset_register+",\t$zero,\t"+str(int(line[4])*col))
+								addIns("\tadd\t"+offset_register+",\t"+offset_register+",\t"+index_register)
+								addIns("\tmul\t"+offset_register+",\t"+offset_register+",\t"+str(data_size(arrdet['output'])))
+								value_register = getReg(convName(line[1]))
+								addIns("\tsw\t"+value_register+",\tVAR_"+line[2]+"("+offset_register+")")
+								freeRegisters.append(offset_register)
+								freeRegisters.append(value_register)
+								x = addressDescriptor.pop(convName(line[1]) , None)
+								if value_register in busyRegisters:
+									busyRegisters.remove(value_register)
+								registerDescriptor[value_register] = None
+
+							if(isVar(line[4]) and line[5].isdigit()):
+								index_register = getReg(convName(line[4]))
+								offset_register = freeRegisters.pop()
+								addIns("\tmul\t"+offset_register+",\t"+index_register+",\t"+str(col))
+								addIns("\taddi\t"+offset_register+",\t"+offset_register+",\t"+line[5])
+								addIns("\tmul\t"+offset_register+",\t"+offset_register+",\t"+str(data_size(arrdet['output'])))
+								value_register = getReg(convName(line[1]))
+								addIns("\tsw\t"+value_register+",\tVAR_"+line[2]+"("+offset_register+")")
+								freeRegisters.append(offset_register)
+								freeRegisters.append(value_register)
+								x = addressDescriptor.pop(convName(line[1]) , None)
+								if value_register in busyRegisters:
+									busyRegisters.remove(value_register)
+								registerDescriptor[value_register] = None
+
+							if(isVar(line[4]) and isVar(line[5])):
+								index_register1 = getReg(convName(line[4]))
+								index_register2 = getReg(convName(line[5]))
+								if len(freeRegisters):
+									offset_register = freeRegisters.pop()
+								addIns("\tmul\t"+offset_register+",\t"+index_register1+",\t"+str(col))
+								addIns("\tadd\t"+offset_register+",\t"+offset_register+",\t"+index_register2)
+								addIns("\tmul\t"+offset_register+",\t"+offset_register+",\t"+str(data_size(arrdet['output'])))
+								value_register = getReg(convName(line[1]))
+								addIns("\tsw\t"+value_register+",\tVAR_"+line[2]+"("+offset_register+")")
+								freeRegisters.append(offset_register)
+								freeRegisters.append(value_register)
+								x = addressDescriptor.pop(convName(line[1]) , None)
+								if value_register in busyRegisters:
+									busyRegisters.remove(value_register)
+								registerDescriptor[value_register] = None
+				else:
+					if(line[3]=='1'):
+						if(line[4].isdigit()):
+							offset = data_size('int')*int(line[4])+tmp['offset']
+							value_register = getReg(convName(line[1]))
+							if len(freeRegisters):
+								offset_register = freeRegisters.pop()
+							addIns("\taddi\t"+offset_register+",\t$zero,\t"+str(offset))
+							addIns("\tsw\t"+value_register+",\tVAR_global"+"("+offset_register+")")
+							freeRegisters.append(offset_register)
+							freeRegisters.append(value_register)
+							x = addressDescriptor.pop(convName(line[1]) , None)
+							if value_register in busyRegisters:
+									busyRegisters.remove(value_register)
+							registerDescriptor[value_register] = None
 						
-						if(isVar(line[4]) and isVar(line[5])):
-							index_register1 = getReg(convName(line[4]))
-							index_register2 = getReg(convName(line[5]))
-							offset_register = freeRegisters.pop()
-							addIns("\tmul\t"+offset_register+",\t"+index_register1+",\t"+str(col))
-							addIns("\tadd\t"+offset_register+",\t"+offset_register+",\t"+index_register2)
-							addIns("\tmul\t"+offset_register+",\t"+offset_register+",\t"+str(data_size(arrdet['output'])))
+						elif(isVar(line[4])):
+							index_register = getReg(convName(line[4]))
 							value_register = getReg(convName(line[1]))
-							addIns("\tsw\t"+value_register+",\tVAR_"+line[2]+"("+offset_register+")")
+							if len(freeRegisters):
+								offset_register = freeRegisters.pop()
+							addIns("\tmul\t"+offset_register+",\t"+index_register+",\t"+str(data_size('int')))
+							addIns("\taddi\t"+offset_register+",\t"+offset_register+",\t"+str(tmp['offset']))
+							addIns("\tsw\t"+value_register+",\tVAR_global"+"("+offset_register+")")
 							freeRegisters.append(offset_register)
+							freeRegisters.append(value_register)
+							x = addressDescriptor.pop(convName(line[1]) , None)
+							if value_register in busyRegisters:
+									busyRegisters.remove(value_register)
+							registerDescriptor[value_register] = None
+					elif(line[3]=='2'):   #change the offset as the product of the current row and total numnber of colums 
+							arrdet = currentSymbolTable.lookup(line[2])
+							col = arrdet['dimension'][1]
+							if(line[4].isdigit() and line[5].isdigit()):
+								#offset=data_size('int')*int(line[4])*int(line[5])
+								offset = (int(line[4])*col + int(line[5]))*data_size(arrdet['output'])+tmp['offset']
+								value_register = getReg(convName(line[1]))
+								if len(freeRegisters):
+									offset_register = freeRegisters.pop()
+								addIns("\taddi\t"+offset_register+",\t$zero,\t"+str(offset))
+								addIns("\tsw\t"+value_register+",\tVAR_global"+"("+offset_register+")")
+								freeRegisters.append(offset_register)
+								freeRegisters.append(value_register)
+								x = addressDescriptor.pop(convName(line[1]) , None)
+								if value_register in busyRegisters:
+									busyRegisters.remove(value_register)
+								registerDescriptor[value_register] = None
+
+							if(line[4].isdigit() and isVar(line[5])):
+								index_register = getReg(convName(line[5]))
+								if len(freeRegisters):
+									offset_register = freeRegisters.pop()
+								addIns("\taddi\t"+offset_register+",\t$zero,\t"+str(int(line[4])*col))
+								addIns("\tadd\t"+offset_register+",\t"+offset_register+",\t"+index_register)
+								addIns("\tmul\t"+offset_register+",\t"+offset_register+",\t"+str(data_size(arrdet['output'])))
+								value_register = getReg(convName(line[1]))
+								addIns("\taddi\t"+offset_register+",\t"+offset_register+",\t"+str(tmp['offset']))
+								addIns("\tsw\t"+value_register+",\tVAR_global"+"("+offset_register+")")
+								freeRegisters.append(offset_register)
+								freeRegisters.append(value_register)
+								x = addressDescriptor.pop(convName(line[1]) , None)
+								if value_register in busyRegisters:
+									busyRegisters.remove(value_register)
+								registerDescriptor[value_register] = None
+
+							if(isVar(line[4]) and line[5].isdigit()):
+								index_register = getReg(convName(line[4]))
+								if len(freeRegisters):
+									offset_register = freeRegisters.pop()
+								addIns("\tmul\t"+offset_register+",\t"+index_register+",\t"+str(col))
+								addIns("\taddi\t"+offset_register+",\t"+offset_register+",\t"+line[5])
+								addIns("\tmul\t"+offset_register+",\t"+offset_register+",\t"+str(data_size(arrdet['output'])))
+								value_register = getReg(convName(line[1]))
+								addIns("\taddi\t"+offset_register+",\t"+offset_register+",\t"+str(tmp['offset']))
+								addIns("\tsw\t"+value_register+",\tVAR_global"+"("+offset_register+")")
+								freeRegisters.append(offset_register)
+								freeRegisters.append(value_register)
+								x = addressDescriptor.pop(convName(line[1]) , None)
+								if value_register in busyRegisters:
+									busyRegisters.remove(value_register)
+								registerDescriptor[value_register] = None
+
+							if(isVar(line[4]) and isVar(line[5])):
+								index_register1 = getReg(convName(line[4]))
+								index_register2 = getReg(convName(line[5]))
+								if len(freeRegisters):
+									offset_register = freeRegisters.pop()
+								addIns("\tmul\t"+offset_register+",\t"+index_register1+",\t"+str(col))
+								addIns("\tadd\t"+offset_register+",\t"+offset_register+",\t"+index_register2)
+								addIns("\tmul\t"+offset_register+",\t"+offset_register+",\t"+str(data_size(arrdet['output'])))
+								value_register = getReg(convName(line[1]))
+								addIns("\taddi\t"+offset_register+",\t"+offset_register+",\t"+str(tmp['offset']))
+								addIns("\tsw\t"+value_register+",\tVAR_global"+"("+offset_register+")")
+								freeRegisters.append(offset_register)
+								freeRegisters.append(value_register)
+								x = addressDescriptor.pop(convName(line[1]) , None)
+								if value_register in busyRegisters:
+									busyRegisters.remove(value_register)
+								registerDescriptor[value_register] = None
 
 			elif(line[0] == "!"):
 				reg1 = getReg(convName(line[1]))
@@ -313,11 +550,20 @@ def create_mips(code,symboltable,tempVarcounter):
 
 			elif(line[0]=='FCALL'):
 				if(line[1] == 'get'):
-					print line[-1]
 					addIns("\tli\t$v0,\t5")
 					addIns("\tsyscall")
 					register = getReg(convName(line[-1]))
 					addIns("\tmove\t"+register+",\t$v0")
+					tmp = currentSymbolTable.lookup(line[-1])
+					if(tmp != False):
+						if(tmp['scope'] == 'GLOBALTABLE'):
+							if len(freeRegisters):
+								reg = freeRegisters.pop()
+							addIns("\taddi\t"+reg+",\t$zero,\t"+str(tmp['offset']))
+							addIns("\tsw\t"+register+",\tVAR_global"+"("+reg+")")
+							freeRegisters.append(reg)
+							freeRegisters.append(register)
+					ind = ind+1
 					continue
 				if(line[1] == 'put'):
 					addIns("\tli\t$v0,\t1")
@@ -328,8 +574,9 @@ def create_mips(code,symboltable,tempVarcounter):
 						addIns("\tli\t$a0,\t"+line[-1])
 					addIns("\tsyscall")
 					addIns("\tli\t$v0,\t4")
-					addIns("la\t$a0,\tnewLine")
+					addIns("\tla\t$a0,\tnewLine")
 					addIns("\tsyscall")
+					ind = ind + 1
 					continue
 				counter=0
 				tmp_dict = {}
@@ -343,11 +590,12 @@ def create_mips(code,symboltable,tempVarcounter):
 					if registerDescriptor[x] != None:
 						addIns("\taddi\t$sp,\t$sp,\t-4")
 						addIns("\tsw\t"+x+",\t0($sp)")
-				print parameterDescriptor,"_________"
+				#print parameterDescriptor,"_________"
 				for x in parameterDescriptor.keys():
 					if parameterDescriptor[x] != None:
 						addIns("\taddi\t$sp,\t$sp,\t-4")
 						addIns("\tsw\t"+x+",\t0($sp)")
+				#print registerDescriptor
 				if(line[-1]=='PARAMS'):
 					#there are no parameters
 					reset_reg()		
@@ -379,13 +627,21 @@ def create_mips(code,symboltable,tempVarcounter):
 					index = line.index('PARAMS')+1
 					paras = line[index:]
 					i=1
-
-					for para in paras:
-						if(isVar(para)):
-							addIns("\tadd\t$a"+str(i)+",\t$zero,\t"+getReg(convName(para)))
-						else:
-							addIns("\taddi\t$a"+str(i)+",\t$zero,\t"+para)
-						i=i+1
+					if(len(paras) <= 3):
+						for para in paras:
+							if(isVar(para)):
+								addIns("\tadd\t$a"+str(i)+",\t$zero,\t"+getReg(convName(para)))
+							else:
+								addIns("\taddi\t$a"+str(i)+",\t$zero,\t"+para)
+							i=i+1
+					else:
+						for para in paras:
+							if(isVar(para)):
+								addIns("\taddi\t$sp,\t$sp,\t-4")
+								addIns("\tsw\t"+getReg(convName(para))+",\t0($sp)")
+							else:
+								addIns("\taddi\t$sp,\t$sp,\t-4")
+								addIns("\tsw\t"+para+",\t0($sp)")
 					reset_reg()		
 					addIns("\tjal\t"+line[1])
 					#check whether it returns something or not
@@ -436,19 +692,34 @@ def create_mips(code,symboltable,tempVarcounter):
 					funlist[currentSymbolTable.tableName] = line[5:][::2]
 					count=1
 					i=1
-					for para in paramtrs:
-						if(isVar(para)):
-							parameterDescriptor["$a"+str(i)] = 'VAR_'+currentSymbolTable.tableName+"_"+para 
-							#addIns("\tadd\t$a"+str(i)+",\t$zero,\t"+getReg(convName(para)))
-							addIns("\tadd\t$t"+str(i-1)+",\t$zero,\t"+"$a"+str(i))#'VAR_'+currentSymbolTable.tableName+"_"+para)
-							freeRegisters.remove("$t"+str(i-1))
-							registerDescriptor["$t"+str(i-1)] = "$a"+str(i)# 'VAR_'+currentSymbolTable.tableName+"_"+para
-							addressDescriptor["$a"+str(i)] = "$t"+str(i-1)
-							busyRegisters.append("$t"+str(i-1))
-						else:
-							pass
-							#addIns("\taddi\t$a"+str(i)+",\t$zero,\t"+para)
-						i=i+1
+					if(len(paramtrs) <= 3):
+						for para in paramtrs:
+							if(isVar(para)):
+								parameterDescriptor["$a"+str(i)] = 'VAR_'+currentSymbolTable.tableName+"_"+para 
+								#addIns("\tadd\t$a"+str(i)+",\t$zero,\t"+getReg(convName(para)))
+								addIns("\tadd\t$t"+str(i-1)+",\t$zero,\t"+"$a"+str(i))#'VAR_'+currentSymbolTable.tableName+"_"+para)
+								if ("$t"+str(i-1)) in freeRegisters:
+									freeRegisters.remove("$t"+str(i-1))
+								registerDescriptor["$t"+str(i-1)] = 'VAR_'+currentSymbolTable.tableName+"_"+para# 'VAR_'+currentSymbolTable.tableName+"_"+para
+								addressDescriptor['VAR_'+currentSymbolTable.tableName+"_"+para] = "$t"+str(i-1)
+								busyRegisters.append("$t"+str(i-1))
+							else:
+								pass
+							i=i+1
+					else:
+						paramtrs.reverse()
+						for para in paramtrs:
+							if(isVar(para)):
+								addIns("\tlw\t"+"$t"+str(i-1)+",\t0($sp)")
+								addIns("\taddi\t$sp,\t$sp,\t4")
+								if ("$t"+str(i-1)) in freeRegisters:
+									freeRegisters.remove("$t"+str(i-1))
+								registerDescriptor["$t"+str(i-1)] = 'VAR_PARAMETER'+currentSymbolTable.tableName+"_"+para# 'VAR_'+currentSymbolTable.tableName+"_"+para
+								addressDescriptor['VAR_PARAMETER'+currentSymbolTable.tableName+"_"+para] = "$t"+str(i-1)
+								busyRegisters.append("$t"+str(i-1))
+							else:
+								pass
+							i = i+1
 					addIns("\taddi\t$sp,\t$sp,\t-4")
 					addIns("\tsw\t$ra,\t0($sp)")
 				
@@ -474,8 +745,9 @@ def create_mips(code,symboltable,tempVarcounter):
 				elif(line[1]=='int'): 
 					data_size2=4
 					tmp = currentSymbolTable.lookup(line[2])
-					data_section += ['\tVAR_'+tmp['scope']+"_"+line[2]+':\t.word\t0']
-					declaredVars.append('VAR_'+tmp['scope']+"_"+line[2])
+					if(tmp['scope'] != 'GLOBALTABLE'):
+						data_section += ['\tVAR_'+tmp['scope']+"_"+line[2]+':\t.word\t0']
+						declaredVars.append('VAR_'+tmp['scope']+"_"+line[2])
 				elif(line[1]=='float'): 
 					data_size2=4
 				elif(line[1]=='double'): 
@@ -591,6 +863,16 @@ def create_mips(code,symboltable,tempVarcounter):
 					addIns("\tmove\t"+register+",\t"+register2)
 				else:
 					addIns("\tli\t"+register+",\t"+line[2])
+
+
+				if(convName(line[1]).split("_")[1] == 'GLOBALTABLE'):
+					of = currentSymbolTable.lookup(convName(line[1]).split("_")[-1])['offset']
+					if len(freeRegisters):
+						reg = freeRegisters.pop()
+					addIns("\taddi\t"+reg+",\t$zero,\t"+str(of))
+					addIns("\tsw\t"+register+",\tVAR_global"+"("+reg+")")
+					freeRegisters.append(reg)
+					freeRegisters.append(register)
 				pass
 			elif(line[0] == '++'):
 				register = getReg(convName(line[1]))
@@ -602,9 +884,65 @@ def create_mips(code,symboltable,tempVarcounter):
 				pass
 			else:
 				pass
+
+
+		operators = ["+","-","*","/","",">=","<=","==","=","++","--","&&","||","!",">","<"]
+		if(line[0] in operators ):    #if current statement is an operator
+			for element in line[2:]:    # for each label in right of the operator
+				if(element in freed_labels.keys()):    # if the operator is to be freed list
+					if(freed_labels[element] != ind):   # if element is used beyond this line
+						continue                          
+					else:         #if it needs to be freed
+						if(isVar(element) and element[0]=="t"):           # if it is a label starting with t
+							used_labels=addressDescriptor.keys()          # take the labels of addressdescriptor
+							for x in used_labels:                         # for each such label
+								y=x.split("_") 
+								#print "\n\n\n",x,"\t\t\tdsff"                           # split the label var_fun_t_12
+								label=y[-2]+"_"+y[-1]                     # add last two strings after split ,i.e, t_12
+								
+								if(label==element):                       # if the current label is t_12
+									used_reg = addressDescriptor[x]       # get the mapped register
+									freeRegisters.append(used_reg)        # add the register to the free registers list
+									registerDescriptor[used_reg] = None   # set the mapping of the register to None
+									waste = addressDescriptor.pop(x,None)  # pop it from the address descriptor
+									#print "\n"
+									#print freeRegisters
+									#register gets freed here
+									break                    # come out of the loop
+		
+		elif(line[0]=='IF'):
+			element = line[1]
+			if(isVar(element) and element[0]=="t"):           # if it is a label starting with t
+				used_labels=addressDescriptor.keys()          # take the labels of addressdescriptor
+				for x in used_labels:                         # for each such label
+					y=x.split("_")                            # split the label var_fun_t_12
+					label=y[-2]+"_"+y[-1]                     # add last two strings after split ,i.e, t_12
+					if(label==element):                       # if the current label is t_12
+						used_reg = addressDescriptor[x]       # get the mapped register
+						freeRegisters.append(used_reg)        # add the register to the free registers list
+						registerDescriptor[used_reg] = None   # set the mapping of the register to None
+						waste = addressDescriptor.pop(x,None)  # pop it from the address descriptor
+									#register gets freed here
+						break
+			element = line[3]
+			if(isVar(element) and element[0]=="t"):           # if it is a label starting with t
+				used_labels=addressDescriptor.keys()          # take the labels of addressdescriptor
+				for x in used_labels:                         # for each such label
+					y=x.split("_")                            # split the label var_fun_t_12
+					label=y[-2]+"_"+y[-1]                     # add last two strings after split ,i.e, t_12
+					if(label==element):                       # if the current label is t_12
+						used_reg = addressDescriptor[x]       # get the mapped register
+						freeRegisters.append(used_reg)        # add the register to the free registers list
+						registerDescriptor[used_reg] = None   # set the mapping of the register to None
+						waste = addressDescriptor.pop(x,None)  # pop it from the address descriptor
+									#register gets freed here
+						break
+		ind = ind +1
+
 	#print "\n----------- MIPS code -----------\n"
 	f = open('code.asm', 'wb')
 	#print ".data"
+	data_section += ['\tnewLine:\t.asciiz\t"\\n"']
 	f.write(".data\n")
 	for line in data_section:
 		#print line
