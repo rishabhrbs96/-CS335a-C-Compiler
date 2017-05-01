@@ -52,6 +52,7 @@ class SymbolTable:
 			self.tableName = 'GLOBALTABLE'
 			self.insert(['FN','put',['void'],'void'])
 			self.insert(['FN','get',['void'],'void'])
+			self.insert(['FN','typeof',['void'],'void'])
 		else:
 			self.depth = theParent.depth+1
 			self.offsets = []

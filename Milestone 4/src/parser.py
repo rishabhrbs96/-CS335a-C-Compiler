@@ -123,20 +123,33 @@ def p_primary_expression2(p):
 	'''primary_expression : IDENTIFIER '''
 	#print "primary_expression"
 	#p[0]=("primary_expression",)+tuple(p[-len(p)+1:])
-	p[0] = {'value':p[1],'code':[]}
+	
 	global varDecList
-	if(currentSymbolTable.lookup(p[1]) == False):
+	tmp = currentSymbolTable.lookup(p[1])
+	if(tmp == False):
 		if(p[1] not in varDecList):
 			print "ERROR at line number ", p.lineno(1) ,": Variable ",p[1]," not declared: "
 			sys.exit()
+	p[0] = {'value':p[1],'code':[],'type':tmp['output']}
 
 def p_constant(p):
-	'''constant : I_CONSTANT
-				| F_CONSTANT
-				| CCONST '''
+	'''constant : I_CONSTANT '''
 	#print "constant"
 	#p[0]=("primary_expression",)+tuple(p[-len(p)+1:])
-	p[0] = {'value':p[1],'code':[]}
+	p[0] = {'value':p[1],'code':[],'type':'int'}
+
+def p_constant2(p):
+	'''constant : F_CONSTANT '''
+	#print "constant"
+	#p[0]=("primary_expression",)+tuple(p[-len(p)+1:])
+	p[0] = {'value':p[1],'code':[],'type':'float'}
+
+def p_constant3(p):
+	'''constant : CCONST '''
+	#print "constant"
+	#p[0]=("primary_expression",)+tuple(p[-len(p)+1:])
+	p[0] = {'value':p[1],'code':[],'type':'char'}
+
 
 def p_enumeration_constant(p):
 	'''enumeration_constant : IDENTIFIER'''
@@ -196,8 +209,12 @@ def p_postfix_expression(p):
 		#else:
 		#	newVar = createNewTempVar()
 		#	p[0] = {'code':p[3]['code']+ [['FCALL',p[1]['value'],'RETV',newVar,'PARAMS'] + p[3]['value']], 'value':newVar }
-		newVar = createNewTempVar()
-		p[0] = {'code':p[3]['code']+ [['FCALL',p[1]['value'],'RETV',newVar,'PARAMS'] + p[3]['value']], 'value':newVar }
+		if(p[1]['value'] == 'typeof'):
+			newVar = createNewTempVar()
+			p[0] = {'code':[['FCALL','typeof','RETV',newVar,'PARAMS',p[3]['type']]], 'value':p[3]['type'],'type': p[3]['type']}
+		else:
+			newVar = createNewTempVar()
+			p[0] = {'code':p[3]['code']+ [['FCALL',p[1]['value'],'RETV',newVar,'PARAMS'] + p[3]['value']], 'value':newVar }
 	else:
 		pass
 
@@ -206,7 +223,10 @@ def p_postfix_expression2(p):
 							| postfix_expression DEC_OP '''
 	#print "postfix_expresssion"
 	#p[0]=("postfix_expresssion",)+tuple(p[-len(p)+1:])
-	p[0] = {'code':[],'value':p[1]['value']}
+	p[0] = {'code':[],'value':p[1]['value'],'type':p[1]['type']}
+	if(p[1]['type'] != 'int'):
+		print "ERROR at line number ", p.lineno(1) ,' : Invalid operation on variable'
+		sys.exit()
 	if(p[1]['code'] != []):
 		p[0]['code'] += p[1]['code']
 	p[0]['code'] += [[p[2],p[1]['value']]]
@@ -218,17 +238,23 @@ def p_postfix_expression3(p):
 	#p[0]=("postfix_expresssion",)+tuple(p[-len(p)+1:])
 	if(len(p) == 5):
 		newVar = createNewTempVar()
-		p[0] = {'code':[],'value':newVar}
+		p[0] = {'code':[],'value':newVar,'type':''}
 		if(p[3]['code'] != []):
 			p[0]['code'] += p[3]['code']
+		if(p[3]['type'] != 'int'):
+			print "ERROR at line number ", p.lineno(1) ,' : Array index should be integer '
+			sys.exit()
 		p[0]['code'] += [['GETARRAY',newVar,p[1],'1',p[3]['value']]]
 	else:
 		newVar = createNewTempVar()
-		p[0] = {'code':[],'value':newVar}
+		p[0] = {'code':[],'value':newVar,'type':''}
 		if(p[3]['code'] != []):
 			p[0]['code'] += p[3]['code']
 		if(p[6]['code'] != []):
 			p[0]['code'] += p[6]['code']
+		if(p[3]['type'] != 'int' or p[6]['type'] != 'int'):
+			print "ERROR at line number ", p.lineno(1) ,' : Array index should be integer '
+			sys.exit()
 		p[0]['code'] += [['GETARRAY',newVar,p[1],'2',p[3]['value'],p[6]['value']]]
 	
 def p_argument_expression_list(p):
@@ -237,7 +263,7 @@ def p_argument_expression_list(p):
 	#print "argument_expression_list"
 	#p[0]=("argument_expression_list",)+tuple(p[-len(p)+1:])
 	if(len(p) == 2):
-		p[0] = {'code':p[1]['code'],'value':[p[1]['value']]}
+		p[0] = {'code':p[1]['code'],'value':[p[1]['value']],'type':p[1]['type']}
 	else:
 		p[0] = {'code':p[1]['code'] + p[3]['code'],'value':p[1]['value'] + [p[3]['value']]}
 
@@ -251,7 +277,10 @@ def p_unary_expression(p):
 		p[0] = p[1]
 	else:
 		newVar = createNewTempVar()
-		p[0] = {'code':[],'value':p[2]['value']}
+		p[0] = {'code':[],'value':p[2]['value'],'type':p[2]['type']}
+		if(p[2]['type'] != 'int'):
+			print "ERROR at line number ", p.lineno(1) ,' : Invalid operation on variable'
+			sys.exit()
 		if(p[2]['code'] != []):
 			p[0]['code'] += p[2]['code']
 		p[0]['code'] += [[p[1],p[2]['value']]]
@@ -265,7 +294,7 @@ def p_unary_expression2(p):
 	#p[0]=("unary_expression",)+tuple(p[-len(p)+1:])
 	if(len(p) == 3):
 		newVar = createNewTempVar()
-		p[0] = {'code':[],'value':newVar}
+		p[0] = {'code':[],'value':newVar,'type':p[1]['type']}
 		if(p[2]['code'] != []):
 			p[0]['code'] += p[2]['code']
 		newVar2 = createNewTempVar()
@@ -306,11 +335,17 @@ def p_multiplicative_expression(p):
 		p[0] = p[1]
 	else:
 		newVar = createNewTempVar()
-		p[0] = {'code':[],'value':newVar}
+		p[0] = {'code':[],'value':newVar,'type':''}
 		if(p[1]['code'] != []):
 			p[0]['code'] += p[1]['code']
 		if(p[3]['code'] != []):
 			p[0]['code'] += p[3]['code']
+		if(p[1]['type'] == 'float' or p[3]['type'] == 'float'):
+			p[0]['type'] = 'float'
+		elif(p[1]['type'] == 'int' or p[3]['type'] == 'int'):
+			p[0]['type'] = 'int'
+		else:
+			p[0]['type'] = 'char'
 		p[0]['code'] += [[p[2],newVar,p[1]['value'],p[3]['value']]]
 
 	
@@ -324,11 +359,19 @@ def p_additive_expression(p):
 		p[0] = p[1]
 	else:
 		newVar = createNewTempVar()
-		p[0] = {'code':[],'value':newVar}
+		p[0] = {'code':[],'value':newVar,'type':''}
 		if(p[1]['code'] != []):
 			p[0]['code'] += p[1]['code']
 		if(p[3]['code'] != []):
 			p[0]['code'] += p[3]['code']
+		
+		if(p[1]['type'] == 'float' or p[3]['type'] == 'float'):
+			p[0]['type'] = 'float'
+		elif(p[1]['type'] == 'int' or p[3]['type'] == 'int'):
+			p[0]['type'] = 'int'
+		else:
+			p[0]['type'] = 'char'
+		
 		p[0]['code'] += [[p[2],newVar,p[1]['value'],p[3]['value']]]
 	
 def p_shift_expression(p):
@@ -341,11 +384,17 @@ def p_shift_expression(p):
 		p[0] = p[1]
 	else:
 		newVar = createNewTempVar()
-		p[0] = {'code':[],'value':newVar}
+		p[0] = {'code':[],'value':newVar,'type':''}
 		if(p[1]['code'] != []):
 			p[0]['code'] += p[1]['code']
 		if(p[3]['code'] != []):
 			p[0]['code'] += p[3]['code']
+		if(p[1]['type'] == 'float' or p[3]['type'] == 'float'):
+			p[0]['type'] = 'float'
+		elif(p[1]['type'] == 'int' or p[3]['type'] == 'int'):
+			p[0]['type'] = 'int'
+		else:
+			p[0]['type'] = 'char'
 		p[0]['code'] += [[p[2],newVar,p[1]['value'],p[3]['value']]]
 
 def p_relational_expression(p):
@@ -360,13 +409,19 @@ def p_relational_expression(p):
 		p[0] = p[1]
 	else:
 		newVar = createNewTempVar()
-		p[0] = {'code':[],'value':newVar}
+		p[0] = {'code':[],'value':newVar,'type':''}
 		if(p[1]['code'] != []):
 			p[0]['code'] += p[1]['code']
 		if(p[3]['code'] != []):
 			p[0]['code'] += p[3]['code']
 		trueLabel = createNewLabel()
 		falseLabel = createNewLabel()
+		if(p[1]['type'] == 'float' or p[3]['type'] == 'float'):
+			p[0]['type'] = 'float'
+		elif(p[1]['type'] == 'int' or p[3]['type'] == 'int'):
+			p[0]['type'] = 'int'
+		else:
+			p[0]['type'] = 'char'
 		
 		p[0]['code'] += [["IF",p[1]['value'],p[2],p[3]['value'],"GOTO",trueLabel]]
 		p[0]['code'] += [['=',newVar,'0']] +  [["GOTO",falseLabel]]
@@ -384,11 +439,17 @@ def p_equality_expression(p):
 		p[0] = p[1]
 	else:
 		newVar = createNewTempVar()
-		p[0] = {'code':[],'value':newVar}
+		p[0] = {'code':[],'value':newVar,'type':''}
 		if(p[1]['code'] != []):
 			p[0]['code'] += p[1]['code']
 		if(p[3]['code'] != []):
 			p[0]['code'] += p[3]['code']
+		if(p[1]['type'] == 'float' or p[3]['type'] == 'float'):
+			p[0]['type'] = 'float'
+		elif(p[1]['type'] == 'int' or p[3]['type'] == 'int'):
+			p[0]['type'] = 'int'
+		else:
+			p[0]['type'] = 'char'
 		p[0]['code'] += [[p[2],newVar,p[1]['value'],p[3]['value']]]
 
 def p_and_expression(p):
@@ -400,11 +461,17 @@ def p_and_expression(p):
 		p[0] = p[1]
 	else:
 		newVar = createNewTempVar()
-		p[0] = {'code':[],'value':newVar}
+		p[0] = {'code':[],'value':newVar,'type':''}
 		if(p[1]['code'] != []):
 			p[0]['code'] += p[1]['code']
 		if(p[3]['code'] != []):
 			p[0]['code'] += p[3]['code']
+		if(p[1]['type'] == 'float' or p[3]['type'] == 'float'):
+			p[0]['type'] = 'float'
+		elif(p[1]['type'] == 'int' or p[3]['type'] == 'int'):
+			p[0]['type'] = 'int'
+		else:
+			p[0]['type'] = 'char'
 		p[0]['code'] += [[p[2],newVar,p[1]['value'],p[3]['value']]]
 
 def p_exclusive_or_expression(p):
@@ -416,11 +483,17 @@ def p_exclusive_or_expression(p):
 		p[0] = p[1]
 	else:
 		newVar = createNewTempVar()
-		p[0] = {'code':[],'value':newVar}
+		p[0] = {'code':[],'value':newVar,'type':''}
 		if(p[1]['code'] != []):
 			p[0]['code'] += p[1]['code']
 		if(p[3]['code'] != []):
 			p[0]['code'] += p[3]['code']
+		if(p[1]['type'] == 'float' or p[3]['type'] == 'float'):
+			p[0]['type'] = 'float'
+		elif(p[1]['type'] == 'int' or p[3]['type'] == 'int'):
+			p[0]['type'] = 'int'
+		else:
+			p[0]['type'] = 'char'
 		p[0]['code'] += [[p[2],newVar,p[1]['value'],p[3]['value']]]
 
 def p_inclusive_or_expression(p):
@@ -432,11 +505,17 @@ def p_inclusive_or_expression(p):
 		p[0] = p[1]
 	else:
 		newVar = createNewTempVar()
-		p[0] = {'code':[],'value':newVar}
+		p[0] = {'code':[],'value':newVar,'type':''}
 		if(p[1]['code'] != []):
 			p[0]['code'] += p[1]['code']
 		if(p[3]['code'] != []):
 			p[0]['code'] += p[3]['code']
+		if(p[1]['type'] == 'float' or p[3]['type'] == 'float'):
+			p[0]['type'] = 'float'
+		elif(p[1]['type'] == 'int' or p[3]['type'] == 'int'):
+			p[0]['type'] = 'int'
+		else:
+			p[0]['type'] = 'char'
 		p[0]['code'] += [[p[2],newVar,p[1]['value'],p[3]['value']]]
 
 def p_logical_and_expression(p):
@@ -448,11 +527,17 @@ def p_logical_and_expression(p):
 		p[0] = p[1]
 	else:
 		newVar = createNewTempVar()
-		p[0] = {'code':[],'value':newVar}
+		p[0] = {'code':[],'value':newVar,'type':''}
 		if(p[1]['code'] != []):
 			p[0]['code'] += p[1]['code']
 		if(p[3]['code'] != []):
 			p[0]['code'] += p[3]['code']
+		if(p[1]['type'] == 'float' or p[3]['type'] == 'float'):
+			p[0]['type'] = 'float'
+		elif(p[1]['type'] == 'int' or p[3]['type'] == 'int'):
+			p[0]['type'] = 'int'
+		else:
+			p[0]['type'] = 'char'
 		p[0]['code'] += [[p[2],newVar,p[1]['value'],p[3]['value']]]
 
 def p_logical_or_expression(p):
@@ -464,11 +549,17 @@ def p_logical_or_expression(p):
 		p[0] = p[1]
 	else:
 		newVar = createNewTempVar()
-		p[0] = {'code':[],'value':newVar}
+		p[0] = {'code':[],'value':newVar,'type':''}
 		if(p[1]['code'] != []):
 			p[0]['code'] += p[1]['code']
 		if(p[3]['code'] != []):
 			p[0]['code'] += p[3]['code']
+		if(p[1]['type'] == 'float' or p[3]['type'] == 'float'):
+			p[0]['type'] = 'float'
+		elif(p[1]['type'] == 'int' or p[3]['type'] == 'int'):
+			p[0]['type'] = 'int'
+		else:
+			p[0]['type'] = 'char'
 		p[0]['code'] += [[p[2],newVar,p[1]['value'],p[3]['value']]]
 
 def p_conditional_expression(p):
@@ -489,7 +580,7 @@ def p_assignment_expression(p):
 	if(len(p) == 2):
 		p[0] = p[1]
 	else:
-		p[0] = {'code':[]}
+		p[0] = {'code':[],'type':''}
 		if(p[3]['code'] != []):
 			p[0]['code'] += p[3]['code']
 		p[0]['code'] += [[p[2]['value'],p[1]['value'],p[3]['value']]]
@@ -497,7 +588,7 @@ def p_assignment_expression(p):
 			if(p[1]['code'][0][0] == 'GETARRAY'):
 				p[1]['code'][0][0] = 'PUTARRAY'
 			p[0]['code'] += p[1]['code']
-		
+		p[0]['type'] = p[3]['type']
 
 def p_assignment_operator(p):
 	'''assignment_operator : EQUALS 
@@ -1238,7 +1329,6 @@ def p_error(p):
 
     if p is not None:
         print("error at line no:  %s :: %s"%((p.lineno),(p.value)))
-        parser.errok()
     else:
         print("Unexpected end of input")
 

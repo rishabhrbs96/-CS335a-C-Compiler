@@ -182,10 +182,10 @@ def create_mips(code,symboltable,tempVarcounter):
 	lifeSpan(code)
 	#print freed_labels
 
-	print "----------- Three Address Code -----------\n"
+	#print "----------- Three Address Code -----------\n"
 	ind=0
 	for line in code:
-		print line,"\t"
+		#print line,"\t"
 		if(line != []):
 			if(line[0] == 'ARRDECLARATION'):
 				tmp = currentSymbolTable.lookup(line[2])
@@ -253,7 +253,7 @@ def create_mips(code,symboltable,tempVarcounter):
 							addIns("\tmul\t"+offset_register+",\t"+offset_register+",\t"+str(data_size('int')))
 							addIns("\tlw\t"+offset_register+",\tVAR_"+line[2]+"("+offset_register+")")
 				else:
-					print tmp['offset']
+					#print tmp['offset']
 					if(line[3] == '1'):
 						if(line[4].isdigit()):
 							offset=4*int(line[4])+tmp['offset']
@@ -549,6 +549,16 @@ def create_mips(code,symboltable,tempVarcounter):
 					addIns("\tori\t"+reg1+",\t"+reg2+",\t"+line[2])			
 
 			elif(line[0]=='FCALL'):
+				if(line[1] == 'typeof'):
+					data_section += ['\tSTR_'+str(ind)+':\t.asciiz\t'+'"'+line[-1]+'"']
+					addIns("\tli\t$v0,\t4")
+					addIns("\tla\t$a0,\tSTR_"+str(ind))
+					addIns("\tsyscall")
+					addIns("\tli\t$v0,\t4")
+					addIns("\tla\t$a0,\tnewLine")
+					addIns("\tsyscall")
+					ind = ind + 1
+					continue
 				if(line[1] == 'get'):
 					addIns("\tli\t$v0,\t5")
 					addIns("\tsyscall")
