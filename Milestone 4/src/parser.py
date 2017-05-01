@@ -389,7 +389,17 @@ def p_equality_expression(p):
 			p[0]['code'] += p[1]['code']
 		if(p[3]['code'] != []):
 			p[0]['code'] += p[3]['code']
-		p[0]['code'] += [[p[2],newVar,p[1]['value'],p[3]['value']]]
+		
+		trueLabel = createNewLabel()
+		falseLabel = createNewLabel()
+		
+		p[0]['code'] += [["IF",p[1]['value'],p[2],p[3]['value'],"GOTO",trueLabel]]
+		p[0]['code'] += [['=',newVar,'0']] +  [["GOTO",falseLabel]]
+		p[0]['code'] += [['LABEL',trueLabel]]
+		p[0]['code'] += [['=',newVar,'1']]
+		p[0]['code'] += [['LABEL',falseLabel]]
+
+		#p[0]['code'] += [[p[2],newVar,p[1]['value'],p[3]['value']]]
 
 def p_and_expression(p):
 	'''and_expression : equality_expression

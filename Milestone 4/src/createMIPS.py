@@ -83,11 +83,11 @@ def getReg(var):
 		#register = freeRegisters.pop()
 		addIns("\taddi\t"+register+",\t$zero,\t"+str(of))
 		addIns("\tlw\t"+register+",\tVAR_global"+"("+register+")")
-	elif(var in registerDescriptor.values()):
-		register = addressDescriptor[var]
 	elif(currentSymbolTable.lookupCurrentParameter(var.split("_")[-1]) != False):
 		reg = "$a" + str(funlist[currentSymbolTable.tableName].index(var.split("_")[-1]) + 1)
 		return reg 
+	elif(var in registerDescriptor.values()):
+		register = addressDescriptor[var]
 	else:
 		if(len(freeRegisters) == 0):
 			for x in lru_list:

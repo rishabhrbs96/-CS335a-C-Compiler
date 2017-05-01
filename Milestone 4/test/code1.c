@@ -1,16 +1,19 @@
 //more that 7 reg
 
-void fu(int a,int b,int c,int d,int e,int f, int g, int h) {
-	put(a);
-	put(b);
-	put(c);
-	put(d);
-	put(e);
-	put(f);
-	put(g);
-	put(h);
+int fac(int a) {
+	if(a == 0)
+		return 0;
+	else if (a == 1)
+	{
+		return 1;
+	}
+	else
+		return fac(a-1)+fac(a-2);
 }
+
 int main(){
-	int a=1,b=2,c=3,d=4,e=8,f=10,g=11,h=12;
-	fu(a,b,c,d,e,f,g,h);
+	int n ;
+	get(n);
+	int res = fac(n);
+	put(res);
 }
